@@ -823,18 +823,12 @@ def verify_autobackup_password():
 @api.route("/autobackup/run", methods=["POST"])
 def run_autobackup():
     """Trigger an immediate backup."""
-    from app.autobackup import _do_backup, get_config
+    from app.autobackup import _do_backup
     body = request.get_json(silent=True) or {}
-    password = body.get("password", "")
+    password = body.get("password") or None
 
-    # If encryption is enabled, pass the password to _do_backup
-    cfg = get_config()
-    if cfg.get("encrypt") and password:
-        from app.autobackup import _load_config, _save_config
-        cfg["_password"] = password
-        _save_config(cfg)
-
-    success, msg = _do_backup()
+    # Pass password directly — never persist it to disk
+    success, msg = _do_backup(password=password)
     return jsonify(ok=success, message=msg if success else None, error=msg if not success else None)
 
 

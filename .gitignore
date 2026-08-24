@@ -14,11 +14,20 @@ build/
 *.db-shm
 *.db-wal
 second_brain.db
+brain.db
 
 # Environment
 .env
 .env.local
 .env.production
+
+# Config files (contain sensitive data)
+autobackup_config.json
+github_sync_config.json
+
+# Backups
+SecondBrain_Backups/
+backups/
 
 # Node
 node_modules/

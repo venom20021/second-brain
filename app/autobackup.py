@@ -82,8 +82,14 @@ def update_config(updates):
 
 # ─── Export Logic ────────────────────────────────────────────────────────────
 
-def _do_backup():
-    """Execute a single backup. Returns (success, message)."""
+def _do_backup(password=None):
+    """Execute a single backup. Returns (success, message).
+    
+    Args:
+        password: Encryption password. Only used for manual backups.
+                  Never stored on disk. If None and encrypt is enabled,
+                  encryption is skipped (scheduled backup).
+    """
     cfg = _load_config()
     backup_dir = cfg.get("backup_dir", os.path.expanduser("~/SecondBrain_Backups"))
 
@@ -208,16 +214,20 @@ def _do_backup():
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         encrypt = cfg.get("encrypt", False)
 
-        if encrypt:
+        if encrypt and password:
             from app.encryption import encrypt_data
-            password = cfg.get("_password", "")  # Temp, set during run
-            if not password:
-                return False, "Encryption enabled but no password provided"
             filename = f"brain-backup-{timestamp}.enc.md"
             filepath = os.path.join(backup_dir, filename)
             encrypted = encrypt_data(md_content, password)
             with open(filepath, "wb") as f:
                 f.write(encrypted)
+        elif encrypt and not password:
+            # Encryption enabled but no password provided (scheduled backup)
+            # Fall back to unencrypted
+            filename = f"brain-backup-{timestamp}.md"
+            filepath = os.path.join(backup_dir, filename)
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(md_content)
         else:
             filename = f"brain-backup-{timestamp}.md"
             filepath = os.path.join(backup_dir, filename)

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colleagues — Second Brain</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#0d1117;--surface:#161b22;--surface-2:#1c2333;--border:rgba(255,255,255,0.06);--text:#e6edf3;--text-dim:#7d8590;--accent:#8b5cf6;--sidebar-w:56px;--topbar-h:52px;--success:#4ade80;--danger:#f87171;--warning:#fbbf24}
+        body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow-y:auto}
+        .sidebar{position:fixed;top:0;left:0;width:var(--sidebar-w);height:100%;background:rgba(13,17,23,0.95);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:12px 0;z-index:100}
+        .sidebar-top{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1}
+        .sidebar-bottom{display:flex;flex-direction:column;align-items:center;gap:4px}
+        .sb-logo{width:32px;height:32px;margin-bottom:12px;background:linear-gradient(135deg,#8b5cf6,#a78bfa,#c4b5fd);clip-path:polygon(50% 0%,85% 25%,85% 75%,50% 100%,15% 75%,15% 25%)}
+        .sb-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-dim);transition:all 0.2s;border:none;background:none;position:relative;text-decoration:none}
+        .sb-icon:hover{color:var(--text);background:rgba(255,255,255,0.04)}
+        .sb-icon.active{color:var(--accent)}
+        .sb-icon.active::before{content:'';position:absolute;left:-12px;top:50%;transform:translateY(-50%);width:3px;height:18px;background:var(--accent);border-radius:0 3px 3px 0}
+        .sb-divider{width:24px;height:1px;background:var(--border);margin:6px 0}
+        .sb-profile{width:36px;height:36px;border-radius:50%;position:relative;cursor:pointer;margin-top:8px}
+        .sb-profile::before{content:'';position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(from 0deg,#8b5cf6,#a78bfa,#8b5cf6);z-index:-1;animation:spin 4s linear infinite}
+        .sb-profile-inner{width:100%;height:100%;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:14px}
+        .sb-profile-label{font-size:8px;font-weight:700;color:var(--accent);letter-spacing:0.08em;text-transform:uppercase;margin-top:4px;text-align:center}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .topbar{position:fixed;top:0;left:var(--sidebar-w);right:0;height:var(--topbar-h);background:rgba(13,17,23,0.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;z-index:90}
+        .topbar-tabs{display:flex;gap:24px;margin-right:24px}
+        .tab-btn{font-size:14px;font-weight:600;color:var(--text-dim);cursor:pointer;background:none;border:none;padding:6px 0;position:relative;text-decoration:none}
+        .tab-btn.active{color:var(--text)}
+        .tab-btn.active::after{content:'';position:absolute;bottom:-2px;left:0;right:0;height:2px;background:var(--text);border-radius:1px}
+        
+        .search-box { flex: 1; max-width: 320px; position: relative; }
+        .search-box input { width: 100%; padding: 7px 12px 7px 32px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; outline: none; }
+        .search-box input:focus { border-color: rgba(139,92,246,0.4); }
+        .search-box input::placeholder { color: var(--text-dim); }
+        .search-box svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-dim); }
+        .topbar-right{margin-left:auto;display:flex;align-items:center;gap:16px}
+        .topbar-time{font-size:12px;color:var(--text-dim);font-weight:500;letter-spacing:0.04em}
+        .main{margin-left:var(--sidebar-w);margin-top:var(--topbar-h);padding:24px 28px;max-width:900px}
+        .page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+        .page-header h1{font-size:24px;font-weight:700}
+        .btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all 0.15s}
+        .btn-primary{background:var(--accent);color:white}
+        .btn-primary:hover{background:#7c3aed}
+        .btn-secondary{background:rgba(255,255,255,0.04);color:var(--text-dim);border:1px solid var(--border)}
+        .btn-secondary:hover{background:rgba(255,255,255,0.08);color:var(--text)}
+        .btn-danger{background:rgba(248,113,113,0.1);color:var(--danger);border:1px solid rgba(248,113,113,0.2)}
+        .btn-sm{padding:5px 10px;font-size:11px}
+        .section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+        .section-title{font-size:15px;font-weight:600;margin-bottom:4px}
+        .section-desc{font-size:12px;color:var(--text-dim);margin-bottom:16px}
+        .colleague-list{display:flex;flex-direction:column;gap:8px}
+        .colleague-card{display:flex;align-items:center;gap:14px;padding:14px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;transition:all 0.15s}
+        .colleague-card:hover{border-color:rgba(139,92,246,0.2);background:rgba(255,255,255,0.03)}
+        .avatar{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:white;flex-shrink:0}
+        .colleague-info{flex:1;min-width:0}
+        .colleague-name{font-size:14px;font-weight:600}
+        .colleague-email{font-size:12px;color:var(--text-dim)}
+        .colleague-role{font-size:10px;padding:2px 8px;border-radius:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em}
+        .role-owner{background:rgba(251,191,36,0.1);color:var(--warning)}
+        .role-admin{background:rgba(139,92,246,0.1);color:var(--accent)}
+        .role-editor{background:rgba(74,222,128,0.1);color:var(--success)}
+        .role-viewer{background:rgba(125,133,144,0.1);color:var(--text-dim)}
+        .colleague-actions{display:flex;gap:6px;align-items:center}
+        .share-link{display:flex;gap:8px;align-items:center;margin-top:12px}
+        .share-link input{flex:1;padding:8px 12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:monospace;outline:none}
+        .permissions-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+        .perm-item{display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;font-size:12px}
+        .perm-item input[type="checkbox"]{accent-color:var(--accent)}
+        .activity-list{display:flex;flex-direction:column;gap:6px}
+        .activity-item{display:flex;align-items:center;gap:10px;padding:8px 12px;font-size:12px;color:var(--text-dim)}
+        .activity-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+        .activity-time{margin-left:auto;font-size:10px;white-space:nowrap}
+        .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;display:none;align-items:center;justify-content:center}
+        .modal-overlay.open{display:flex}
+        .modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:440px}
+        .modal h3{font-size:16px;font-weight:600;margin-bottom:12px}
+        .field{margin-bottom:12px}
+        .field label{display:block;font-size:12px;font-weight:500;color:var(--text-dim);margin-bottom:4px}
+        .field input,.field select{width:100%;padding:8px 12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none}
+        .field input:focus,.field select:focus{border-color:var(--accent)}
+        .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+        .toast{position:fixed;top:64px;left:50%;transform:translateX(-50%) translateY(-16px);padding:7px 14px;background:rgba(22,27,34,0.95);border:1px solid var(--border);border-radius:8px;font-size:12px;z-index:300;opacity:0;transition:all 0.2s;pointer-events:none}
+        .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+        .empty-state{text-align:center;padding:40px;color:var(--text-dim)}
+        .empty-state .icon{font-size:40px;margin-bottom:12px}
+        .empty-state p{font-size:13px}
+        .online-dot{width:8px;height:8px;border-radius:50%;background:var(--success);border:2px solid var(--surface);position:absolute;bottom:0;right:0}
+        .avatar-wrapper{position:relative}
+    
+        .chat-panel { position: fixed; top: var(--topbar-h); right: -400px; width: 400px; bottom: 0; background: rgba(13,17,23,0.95); backdrop-filter: blur(16px); border-left: 1px solid var(--border); z-index: 90; display: flex; flex-direction: column; transition: right 0.3s; }
+        .chat-panel.open { right: 0; }
+        .chat-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .chat-header h3 { font-size: 13px; font-weight: 600; }
+        .chat-close { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+        .chat-msg { font-size: 13px; line-height: 1.5; padding: 8px 12px; border-radius: 8px; max-width: 90%; }
+        .chat-msg.user { background: rgba(139,92,246,0.15); align-self: flex-end; border: 1px solid rgba(139,92,246,0.2); }
+        .chat-msg.assistant { background: rgba(255,255,255,0.03); align-self: flex-start; border: 1px solid var(--border); }
+        .chat-input-area { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+        .chat-input-area input { flex: 1; padding: 8px 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; outline: none; }
+        .chat-input-area button { padding: 8px 14px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-top">
+            <a href="/" class="sb-logo" style="text-decoration:none" title="Second Brain"></a>
+            <a href="/" class="sb-icon" aria-label="Dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></a>
+            <a href="/hub" class="sb-icon" aria-label="Hub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></a>
+            <a href="/knowledge" class="sb-icon" aria-label="Knowledge Web"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><line x1="8.5" y1="6" x2="15.5" y2="6"/><line x1="6" y1="8.5" x2="6" y2="15.5"/></svg></a>
+            <a href="/graph" class="sb-icon" aria-label="Graph View"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><line x1="8.5" y1="6" x2="15.5" y2="6"/><line x1="6" y1="8.5" x2="6" y2="15.5"/><line x1="18" y1="8.5" x2="18" y2="15.5"/><line x1="8.5" y1="18" x2="15.5" y2="18"/></svg></a>
+            <a href="/calendar" class="sb-icon" aria-label="Calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><rect x="7" y="14" width="3" height="3" rx="0.5"/></svg></a>
+            <a href="/skills" class="sb-icon" aria-label="Skills"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></a>
+            <a href="/browser" class="sb-icon" aria-label="Browser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></a>
+            <a href="/colleagues" class="sb-icon active" aria-label="Colleagues"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></a>
+            <div class="sb-divider"></div>
+            <a href="/settings" class="sb-icon" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></a>
+        </div>
+        <div class="sidebar-bottom">
+            <div class="sb-profile" title="AI Assistant"><div class="sb-profile-inner">🔮</div></div>
+            <div class="sb-profile-label">AI<br>ASSISTANT</div>
+        </div>
+    </nav>
+
+    <div class="topbar">
+        <div class="topbar-tabs">
+            <a href="/" class="tab-btn">Home</a>
+            <a href="/knowledge" class="tab-btn">Knowledge Web</a>
+            <a href="/graph" class="tab-btn">Graph View</a>
+            <a href="/hub" class="tab-btn">Personal Hub</a>
+            <a href="/settings" class="tab-btn">Settings</a>
+        </div>
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="searchInput" placeholder="Search knowledge web..." aria-label="Search" oninput="handleSearch(this.value)">
+        </div>
+        <div class="topbar-right"><span class="topbar-time" id="topTime"></span>
+                        <button onclick="toggleChat()" title="AI Chat" style="background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-dim);cursor:pointer;font-size:15px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;transition:all 0.15s">💬</button></div>
+    </div>
+
+    <div class="main">
+        <div class="page-header">
+            <h1>Colleagues</h1>
+            <button class="btn btn-primary" onclick="openInviteModal()">+ Invite Colleague</button>
+        </div>
+
+        <!-- Team Members -->
+        <div class="section">
+            <div class="section-title">Team Members</div>
+            <div class="section-desc">People who have access to your Second Brain</div>
+            <div class="colleague-list" id="colleagueList"></div>
+        </div>
+
+        <!-- Share Link -->
+        <div class="section">
+            <div class="section-title">Share Link</div>
+            <div class="section-desc">Generate a link to share read-only access to specific items</div>
+            <div class="share-link">
+                <input type="text" id="shareLink" value="https://brain.local/shared/abc123" readonly>
+                <button class="btn btn-secondary btn-sm" onclick="copyShareLink()">Copy</button>
+                <button class="btn btn-primary btn-sm" onclick="generateShareLink()">Generate New</button>
+            </div>
+            <div class="permissions-grid" style="margin-top:16px">
+                <div class="perm-item"><input type="checkbox" checked> <span>Allow viewing notes</span></div>
+                <div class="perm-item"><input type="checkbox" checked> <span>Allow viewing repos</span></div>
+                <div class="perm-item"><input type="checkbox"> <span>Allow editing</span></div>
+                <div class="perm-item"><input type="checkbox"> <span>Allow searching</span></div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="section">
+            <div class="section-title">Recent Activity</div>
+            <div class="section-desc">What your team has been doing</div>
+            <div class="activity-list" id="activityList"></div>
+        </div>
+    </div>
+
+    <!-- Invite Modal -->
+    <div class="modal-overlay" id="inviteModal">
+        <div class="modal">
+            <h3>Invite Colleague</h3>
+            <div class="field">
+                <label>Name</label>
+                <input type="text" id="inviteName" placeholder="John Doe">
+            </div>
+            <div class="field">
+                <label>Email</label>
+                <input type="email" id="inviteEmail" placeholder="john@example.com">
+            </div>
+            <div class="field">
+                <label>Role</label>
+                <select id="inviteRole">
+                    <option value="viewer">Viewer — Can view and search</option>
+                    <option value="editor">Editor — Can view, edit, and add</option>
+                    <option value="admin">Admin — Full access except revoke owner</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Access Scope</label>
+                <select id="inviteScope">
+                    <option value="all">All items</option>
+                    <option value="notes">Notes only</option>
+                    <option value="repos">Repositories only</option>
+                    <option value="skills">Skills only</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeInviteModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="sendInvite()">Send Invite</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-header">
+            <h3>💬 AI Chat</h3>
+            <button class="chat-close" onclick="toggleChat()">&times;</button>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div style="text-align:center;color:var(--text-dim);padding:20px;font-size:12px;">
+                Ask me anything about your knowledge base.<br>I search your memories and use Gemini to answer.
+            </div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="chatInput" placeholder="Ask about your memories..." onkeydown="if(event.key==='Enter')sendChat()">
+            <button onclick="sendChat()">Send</button>
+        </div>
+    </div>
+
+    <script src="/vendor/socket.io.min.js?v=1787384686">
+    var chatHistory = JSON.parse(localStorage.getItem('brain_chat_history') || '[]'); if (!Array.isArray(chatHistory)) chatHistory = [];
+    function toggleChat() { document.getElementById('chatPanel').classList.toggle('open'); }
+    async function sendChat() {
+        var input = document.getElementById('chatInput'), msg = input.value.trim();
+        if (!msg) return; input.value = '';
+        var ml = document.getElementById('chatMessages');
+        ml.innerHTML += '<div class="chat-msg user">' + esc(msg) + '</div>';
+        var tid = 't-' + Date.now();
+        ml.innerHTML += '<div class="chat-msg assistant" id="' + tid + '">Thinking...</div>';
+        ml.scrollTop = ml.scrollHeight;
+        try {
+            var _apiKey = localStorage.getItem('brain_api_key') || '';
+            var _headers = {'Content-Type': 'application/json'};
+            if (_apiKey) _headers['X-API-Key'] = _apiKey;
+            var r = await fetch(window.location.origin + '/api/v1/chat', { method: 'POST', headers: _headers, body: JSON.stringify({ message: msg, history: chatHistory }) });
+            document.getElementById(tid).innerHTML = esc(r.reply);
+            chatHistory.push({ role: 'user', parts: [msg] }); chatHistory.push({ role: 'model', parts: [r.reply] });
+            if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
+            localStorage.setItem('brain_chat_history', JSON.stringify(chatHistory));
+        } catch(e) { document.getElementById(tid).innerHTML = '<span style="color:#f87171">' + esc(e.message) + '</span>'; }
+        ml.scrollTop = ml.scrollHeight;
+    }
+
+    
+    document.addEventListener('click', function(e) {
+        var cp = document.getElementById('chatPanel');
+        if (cp && cp.classList.contains('open') && !e.target.closest('.chat-panel') && !e.target.closest('[onclick*="toggleChat"]')) {
+            cp.classList.remove('open');
+        }
+    });
+    </script>
+    <script>
+    const API_URL=window.location.origin+'/api/v1';
+    let apiKey=localStorage.getItem('brain_api_key')||'';
+
+    // Demo colleagues data (stored in localStorage for persistence)
+    function getColleagues(){
+        const stored=localStorage.getItem('brain_colleagues');
+        if(stored)return JSON.parse(stored);
+        // Default demo data
+        const defaults=[
+            {id:1,name:'You',email:'prabhatsai047@gmail.com',role:'owner',color:'#8b5cf6',online:true},
+            {id:2,name:'BARQ AI',email:'barq@local',role:'admin',color:'#4ade80',online:true},
+            {id:3,name:'GitHub Copilot',email:'copilot@github.com',role:'editor',color:'#22d3ee',online:false},
+        ];
+        localStorage.setItem('brain_colleagues',JSON.stringify(defaults));
+        return defaults;
+    }
+
+    function saveColleagues(c){localStorage.setItem('brain_colleagues',JSON.stringify(c))}
+
+    function renderColleagues(){
+        const colleagues=getColleagues();
+        const list=document.getElementById('colleagueList');
+        const ROLE_CLASSES={owner:'role-owner',admin:'role-admin',editor:'role-editor',viewer:'role-viewer'};
+        list.innerHTML=colleagues.map(c=>
+            '<div class="colleague-card">'+
+                '<div class="avatar-wrapper">'+
+                    '<div class="avatar" style="background:'+c.color+'">'+c.name.charAt(0).toUpperCase()+'</div>'+
+                    (c.online?'<div class="online-dot"></div>':'')+
+                '</div>'+
+                '<div class="colleague-info">'+
+                    '<div class="colleague-name">'+esc(c.name)+'</div>'+
+                    '<div class="colleague-email">'+esc(c.email)+'</div>'+
+                '</div>'+
+                '<span class="colleague-role '+ROLE_CLASSES[c.role]+'">'+c.role+'</span>'+
+                '<div class="colleague-actions">'+
+                    (c.role!=='owner'?'<button class="btn btn-danger btn-sm" onclick="removeColleague('+c.id+')">Remove</button>':'')+
+                '</div>'+
+            '</div>'
+        ).join('');
+    }
+
+    function renderActivity(){
+        const activities=[
+            {user:'You',action:'created note',item:'BARQ AI - Master Memory',color:'#8b5cf6',time:'2 hours ago'},
+            {user:'BARQ AI',action:'searched for',item:'machine learning',color:'#4ade80',time:'3 hours ago'},
+            {user:'You',action:'imported',item:'100 Graphify repos',color:'#8b5cf6',time:'5 hours ago'},
+            {user:'GitHub Copilot',action:'cloned',item:'lancedb/lancedb',color:'#22d3ee',time:'1 day ago'},
+            {user:'You',action:'updated settings',item:'Gemini API key',color:'#8b5cf6',time:'2 days ago'},
+        ];
+        document.getElementById('activityList').innerHTML=activities.map(a=>
+            '<div class="activity-item">'+
+                '<div class="activity-dot" style="background:'+a.color+'"></div>'+
+                '<span><strong>'+esc(a.user)+'</strong> '+esc(a.action)+' <em style="color:var(--text)">'+esc(a.item)+'</em></span>'+
+                '<span class="activity-time">'+a.time+'</span>'+
+            '</div>'
+        ).join('');
+    }
+
+    function openInviteModal(){document.getElementById('inviteModal').classList.add('open')}
+    function closeInviteModal(){document.getElementById('inviteModal').classList.remove('open')}
+
+    function sendInvite(){
+        const name=document.getElementById('inviteName').value.trim();
+        const email=document.getElementById('inviteEmail').value.trim();
+        const role=document.getElementById('inviteRole').value;
+        if(!name||!email){showToast('Enter name and email');return;}
+        const colors=['#4ade80','#f87171','#fbbf24','#22d3ee','#a78bfa','#fb923c'];
+        const colleagues=getColleagues();
+        colleagues.push({
+            id:Date.now(),name,email,role,
+            color:colors[colleagues.length%colors.length],
+            online:false
+        });
+        saveColleagues(colleagues);
+        renderColleagues();
+        closeInviteModal();
+        document.getElementById('inviteName').value='';
+        document.getElementById('inviteEmail').value='';
+        showToast('Invite sent to '+name);
+    }
+
+    function removeColleague(id){
+        if(!confirm('Remove this colleague?'))return;
+        const colleagues=getColleagues().filter(c=>c.id!==id);
+        saveColleagues(colleagues);
+        renderColleagues();
+        showToast('Colleague removed');
+    }
+
+    function generateShareLink(){
+        const chars='abcdefghijklmnopqrstuvwxyz0123456789';
+        let link='';for(let i=0;i<12;i++)link+=chars[Math.floor(Math.random()*chars.length)];
+        document.getElementById('shareLink').value='https://brain.local/shared/'+link;
+        showToast('New share link generated');
+    }
+
+    function copyShareLink(){
+        navigator.clipboard.writeText(document.getElementById('shareLink').value);
+        showToast('Link copied to clipboard');
+    }
+
+        // ── Search ──
+    var searchTimer;
+    function handleSearch(q) {
+        clearTimeout(searchTimer);
+        if (!q.trim()) return;
+        searchTimer = setTimeout(function() {
+            window.location.href = '/browser?search=' + encodeURIComponent(q);
+        }, 800);
+    }
+
+    function startTimeClock(){const u=()=>{const n=new Date(),mo=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];document.getElementById('topTime').textContent=n.getDate().toString().padStart(2,'0')+' '+mo[n.getMonth()]+' '+n.getFullYear()+' | '+n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0')+' PST'};u();setInterval(u,30000)}
+
+    function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+    let toastTimer;
+    function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2500)}
+
+    // WebSocket for real-time collaboration
+    var socket = null;
+    let myName = localStorage.getItem('brain_user_name') || 'User';
+    try {
+        socket = io();
+        socket.on('connect', () => {
+            socket.emit('identify', { name: myName });
+            socket.emit('navigate', { page: '/colleagues' });
+        });
+    
+    socket.on('users_list', (data) => {
+        // Update online status of colleagues
+        const colleagues = getColleagues();
+        const onlineUsers = data.users.map(u => u.name);
+        colleagues.forEach(c => {
+            c.online = onlineUsers.includes(c.name);
+        });
+        saveColleagues(colleagues);
+        renderColleagues();
+    });
+    
+    socket.on('item_created', (item) => {
+        // Add to activity feed
+        const activity = document.getElementById('activityList');
+        if (activity) {
+            const newItem = document.createElement('div');
+            newItem.className = 'activity-item';
+            newItem.innerHTML = 
+                '<div class="activity-dot" style="background:var(--accent)"></div>' +
+                '<span><strong>' + esc(myName) + '</strong> created <em style="color:var(--text)">' + esc(item.title) + '</em></span>' +
+                '<span class="activity-time">Just now</span>';
+            activity.insertBefore(newItem, activity.firstChild);
+        }
+    });
+    
+    socket.on('item_updated', (item) => {
+        const activity = document.getElementById('activityList');
+        if (activity) {
+            const newItem = document.createElement('div');
+            newItem.className = 'activity-item';
+            newItem.innerHTML = 
+                '<div class="activity-dot" style="background:var(--success)"></div>' +
+                '<span><strong>' + esc(myName) + '</strong> updated <em style="color:var(--text)">' + esc(item.title) + '</em></span>' +
+                '<span class="activity-time">Just now</span>';
+            activity.insertBefore(newItem, activity.firstChild);
+        }
+    });
+    } catch(e) { console.warn('WebSocket unavailable:', e); }
+    
+    startTimeClock();renderColleagues();renderActivity();
+    </script>
+</body>
+</html>

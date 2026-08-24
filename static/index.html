@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — Second Brain</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0d1117; --surface: #161b22; --surface-2: #1c2333; --surface-3: #21262d;
+            --border: rgba(255,255,255,0.06); --border-hover: rgba(255,255,255,0.12);
+            --text: #e6edf3; --text-dim: #7d8590; --text-muted: #484f58;
+            --accent: #8b5cf6; --accent-dim: rgba(139,92,246,0.15);
+            --green: #4ade80; --green-dim: rgba(74,222,128,0.15);
+            --blue: #60a5fa; --blue-dim: rgba(96,165,250,0.15);
+            --cyan: #22d3ee; --cyan-dim: rgba(34,211,238,0.15);
+            --amber: #fbbf24; --amber-dim: rgba(251,191,36,0.15);
+            --rose: #f87171; --rose-dim: rgba(248,113,113,0.15);
+            --sidebar-w: 56px; --topbar-h: 52px;
+        }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); overflow-y: auto; height: 100vh; }
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+        :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+        /* ── Sidebar ────────────────────────── */
+        .sidebar { position: fixed; top: 0; left: 0; width: var(--sidebar-w); height: 100%; background: rgba(13,17,23,0.95); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding: 12px 0; z-index: 100; }
+        .sidebar-top { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+        .sidebar-bottom { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .sb-logo { width: 32px; height: 32px; margin-bottom: 12px; cursor: pointer; background: linear-gradient(135deg, #8b5cf6, #a78bfa, #c4b5fd); clip-path: polygon(50% 0%, 85% 25%, 85% 75%, 50% 100%, 15% 75%, 15% 25%); transition: filter 0.3s; }
+        .sb-logo:hover { filter: brightness(1.3) drop-shadow(0 0 10px rgba(139,92,246,0.6)); }
+        .sb-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-dim); transition: all 0.2s; border: none; background: none; position: relative; text-decoration: none; }
+        .sb-icon:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+        .sb-icon.active { color: var(--accent); }
+        .sb-icon.active::before { content: ''; position: absolute; left: -12px; top: 50%; transform: translateY(-50%); width: 3px; height: 18px; background: var(--accent); border-radius: 0 3px 3px 0; }
+        .sb-divider { width: 24px; height: 1px; background: var(--border); margin: 6px 0; }
+        .sb-profile { width: 36px; height: 36px; border-radius: 50%; position: relative; cursor: pointer; margin-top: 8px; }
+        .sb-profile::before { content: ''; position: absolute; inset: -3px; border-radius: 50%; background: conic-gradient(from 0deg, #8b5cf6, #a78bfa, #8b5cf6); z-index: -1; animation: spin 4s linear infinite; }
+        .sb-profile-inner { width: 100%; height: 100%; border-radius: 50%; background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .sb-profile-label { font-size: 8px; font-weight: 700; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 4px; text-align: center; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Top Bar ────────────────────────── */
+        .topbar { position: fixed; top: 0; left: var(--sidebar-w); right: 0; height: var(--topbar-h); background: rgba(13,17,23,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; z-index: 90; }
+        .topbar-tabs { display: flex; gap: 24px; margin-right: 24px; }
+        .tab-btn { font-size: 14px; font-weight: 600; color: var(--text-dim); cursor: pointer; background: none; border: none; padding: 6px 0; position: relative; transition: color 0.2s; text-decoration: none; }
+        .tab-btn.active { color: var(--text); }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px; background: var(--text); border-radius: 1px; }
+        .search-box { flex: 1; max-width: 320px; position: relative; }
+        .search-box input { width: 100%; padding: 7px 12px 7px 32px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; outline: none; }
+        .search-box input:focus { border-color: rgba(139,92,246,0.4); }
+        .search-box input::placeholder { color: var(--text-dim); }
+        .search-box svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-dim); }
+        .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+        .topbar-time { font-size: 12px; color: var(--text-dim); font-weight: 500; letter-spacing: 0.04em; white-space: nowrap; }
+        .topbar-icon { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: var(--text-dim); cursor: pointer; border: none; background: none; transition: color 0.2s; border-radius: 6px; }
+        .topbar-icon:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+        .topbar-icon svg { width: 16px; height: 16px; }
+
+        /* ── Main Dashboard ─────────────────── */
+        .dashboard { margin-left: var(--sidebar-w); margin-top: var(--topbar-h); padding: 24px 28px; max-width: 1400px; }
+
+        /* Welcome */
+        .welcome { margin-bottom: 28px; }
+        .welcome h1 { font-size: 26px; font-weight: 700; margin-bottom: 4px; }
+        .welcome p { font-size: 13px; color: var(--text-dim); }
+
+        /* Stats Row */
+        .stats-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 24px; }
+        .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; transition: all 0.2s; cursor: default; }
+        .stat-card:hover { border-color: var(--border-hover); transform: translateY(-1px); }
+        .stat-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; margin-bottom: 10px; }
+        .stat-value { font-size: 24px; font-weight: 700; line-height: 1; }
+        .stat-label { font-size: 11px; color: var(--text-dim); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+        /* Section Grid */
+        .section-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+        .section-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+
+        /* Card */
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+        .card-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .card-title { font-size: 14px; font-weight: 600; }
+        .card-badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+        .card-body { padding: 14px 18px; }
+
+        /* Quick Links */
+        .quick-links { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .quick-link { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 10px; text-decoration: none; color: var(--text); transition: all 0.2s; cursor: pointer; }
+        .quick-link:hover { border-color: var(--accent); background: var(--accent-dim); transform: translateY(-2px); }
+        .quick-link-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .quick-link-label { font-size: 12px; font-weight: 600; }
+        .quick-link-desc { font-size: 10px; color: var(--text-dim); text-align: center; }
+
+        /* Recent Items */
+        .item-list { display: flex; flex-direction: column; gap: 6px; }
+        .item-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; transition: background 0.15s; cursor: pointer; }
+        .item-row:hover { background: rgba(255,255,255,0.03); }
+        .item-type-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .item-type-badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; flex-shrink: 0; }
+        .item-title { font-size: 13px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .item-tags { display: flex; gap: 4px; flex-shrink: 0; }
+        .item-tag { font-size: 9px; padding: 1px 6px; background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.15); border-radius: 8px; color: var(--accent); }
+        .item-time { font-size: 10px; color: var(--text-muted); flex-shrink: 0; white-space: nowrap; }
+
+        /* Activity Feed */
+        .activity-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+        .activity-item:last-child { border-bottom: none; }
+        .activity-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+        .activity-text { font-size: 12px; color: var(--text-dim); line-height: 1.4; }
+        .activity-text strong { color: var(--text); }
+        .activity-time { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+
+        /* Mini Graph Canvas */
+        .graph-widget { position: relative; width: 100%; height: 380px; background: var(--bg); border-radius: 8px; overflow: hidden; }
+        .graph-widget canvas { width: 100%; height: 100%; }
+        .graph-widget-overlay { position: absolute; bottom: 8px; right: 8px; display: flex; gap: 4px; }
+        .graph-widget-btn { width: 28px; height: 28px; background: rgba(22,27,34,0.9); border: 1px solid var(--border); border-radius: 6px; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+        .graph-widget-btn:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+
+        /* Search Panel */
+        .search-panel { position: fixed; top: 0; left: var(--sidebar-w); right: 0; bottom: 0; background: rgba(13,17,23,0.95); backdrop-filter: blur(20px); z-index: 200; display: none; flex-direction: column; align-items: center; padding-top: 80px; }
+        .search-panel.open { display: flex; }
+        .search-panel input { width: 560px; padding: 14px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-size: 16px; outline: none; }
+        .search-panel input:focus { border-color: var(--accent); }
+        .search-results { width: 560px; margin-top: 12px; max-height: 400px; overflow-y: auto; }
+        .search-result { padding: 10px 14px; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
+        .search-result:hover { background: rgba(255,255,255,0.04); }
+        .search-result-title { font-size: 13px; font-weight: 500; }
+        .search-result-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+        /* Chat Panel */
+        .chat-panel { position: fixed; top: var(--topbar-h); right: -400px; width: 400px; bottom: 0; background: rgba(13,17,23,0.95); backdrop-filter: blur(16px); border-left: 1px solid var(--border); z-index: 90; display: flex; flex-direction: column; transition: right 0.3s; }
+        .chat-panel.open { right: 0; }
+        .chat-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .chat-header h3 { font-size: 13px; font-weight: 600; }
+        .chat-close { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+        .chat-msg { font-size: 13px; line-height: 1.5; padding: 8px 12px; border-radius: 8px; max-width: 90%; }
+        .chat-msg.user { background: rgba(139,92,246,0.15); align-self: flex-end; border: 1px solid rgba(139,92,246,0.2); }
+        .chat-msg.assistant { background: rgba(255,255,255,0.03); align-self: flex-start; border: 1px solid var(--border); }
+        .chat-input-area { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+        .chat-input-area input { flex: 1; padding: 8px 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; outline: none; }
+        .chat-input-area button { padding: 8px 14px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; }
+
+        /* Auth */
+        .auth-overlay { position: fixed; inset: 0; background: rgba(13,17,23,0.95); backdrop-filter: blur(20px); z-index: 500; display: flex; align-items: center; justify-content: center; }
+        .auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 32px; width: 360px; text-align: center; }
+        .auth-card h2 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+        .auth-card p { font-size: 12px; color: var(--text-dim); margin-bottom: 18px; }
+        .auth-card input { width: 100%; padding: 9px 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; outline: none; margin-bottom: 12px; font-family: monospace; }
+        .auth-card input:focus { border-color: var(--accent); }
+        .auth-card button { width: 100%; padding: 9px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+        #authError { color: #f87171; font-size: 11px; margin-top: 8px; display: none; }
+
+        /* Toast */
+        .toast { position: fixed; top: 64px; left: 50%; transform: translateX(-50%) translateY(-16px); padding: 7px 14px; background: rgba(22,27,34,0.95); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; z-index: 300; opacity: 0; transition: all 0.2s; pointer-events: none; }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+        /* Drag & Drop */
+        .dashboard.dragging .card { cursor: grab; }
+        .dashboard.dragging .card:active { cursor: grabbing; }
+        .dashboard.dragging .card.dragging { opacity: 0.5; border-color: var(--accent); box-shadow: 0 0 20px rgba(139,92,246,0.3); transform: scale(0.98); }
+        .dashboard.dragging .card.drag-over { border-color: var(--accent); background: rgba(139,92,246,0.05); box-shadow: inset 0 0 0 2px rgba(139,92,246,0.3); }
+        .dashboard.customizing .card { border: 1px dashed rgba(139,92,246,0.3); }
+        .dashboard.customizing .card:hover { border-color: var(--accent); }
+        .dashboard.customizing .card .card-header { position: relative; }
+        .card-drag-handle { display: none; width: 20px; height: 20px; cursor: grab; color: var(--text-dim); font-size: 12px; text-align: center; line-height: 20px; border-radius: 4px; }
+        .dashboard.customizing .card-drag-handle { display: flex; align-items: center; justify-content: center; }
+        .card-drag-handle:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+        .card-visibility { display: none; width: 20px; height: 20px; cursor: pointer; color: var(--text-dim); font-size: 12px; text-align: center; line-height: 20px; border-radius: 4px; border: none; background: none; }
+        .dashboard.customizing .card-visibility { display: flex; align-items: center; justify-content: center; }
+        .card-visibility:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+        .card-visibility.hidden { color: var(--rose); }
+        .customize-btn { position: fixed; bottom: 20px; right: 20px; width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: white; border: none; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; z-index: 80; box-shadow: 0 4px 12px rgba(139,92,246,0.4); transition: all 0.2s; }
+        .customize-btn:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(139,92,246,0.5); }
+        .customize-bar { display: none; padding: 10px 20px; margin-bottom: 16px; background: var(--surface); border: 1px solid var(--accent); border-radius: 10px; align-items: center; gap: 12px; }
+        .customize-bar.show { display: flex; }
+
+        /* Memory Chart */
+        .mem-chart-container { position: relative; width: 100%; height: 180px; }
+
+        /* Health */
+        .health-group { padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 10px; }
+        .health-group-title { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+        .health-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px; }
+        .health-label { color: var(--text-dim); }
+        .health-value { font-weight: 500; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; }
+        .health-bar { height: 4px; background: rgba(255,255,255,0.04); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+        .health-bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+        .health-status-ok { color: var(--green); }
+        .health-status-warn { color: var(--amber); }
+        .health-status-err { color: var(--rose); }
+        @media (max-width: 1100px) { .stats-row { grid-template-columns: repeat(3, 1fr); } .section-grid { grid-template-columns: 1fr; } .section-grid.three { grid-template-columns: 1fr; } }
+        @media (max-width: 700px) { .stats-row { grid-template-columns: repeat(2, 1fr); } .quick-links { grid-template-columns: repeat(2, 1fr); } }
+    </style>
+</head>
+<body>
+    <!-- Auth -->
+    <div class="auth-overlay" id="authOverlay" style="display:none">
+        <div class="auth-card">
+            <div style="font-size:28px;margin-bottom:10px;">🧠</div>
+            <h2>Connect to your Second Brain</h2>
+            <p>Enter your API key to access the Dashboard</p>
+            <input type="text" id="authKeyInput" placeholder="sb_..." autofocus>
+            <button id="authConnectBtn">Connect</button>
+            <div id="authError"></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="sidebar-top">
+            <a href="/" class="sb-logo" style="text-decoration:none" title="Second Brain"></a>
+            <a href="/" class="sb-icon active" aria-label="Dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></a>
+            <a href="/hub" class="sb-icon" aria-label="Hub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></a>
+            <a href="/knowledge" class="sb-icon" aria-label="Knowledge Web"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><line x1="8.5" y1="6" x2="15.5" y2="6"/><line x1="6" y1="8.5" x2="6" y2="15.5"/></svg></a>
+            <a href="/graph" class="sb-icon" aria-label="Graph View"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><line x1="8.5" y1="6" x2="15.5" y2="6"/><line x1="6" y1="8.5" x2="6" y2="15.5"/><line x1="18" y1="8.5" x2="18" y2="15.5"/><line x1="8.5" y1="18" x2="15.5" y2="18"/></svg></a>
+            <a href="/calendar" class="sb-icon" aria-label="Calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><rect x="7" y="14" width="3" height="3" rx="0.5"/></svg></a>
+            <a href="/skills" class="sb-icon" aria-label="Skills"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></a>
+            <a href="/browser" class="sb-icon" aria-label="Browser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></a>
+            <a href="/colleagues" class="sb-icon" aria-label="Colleagues"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></a>
+            <div class="sb-divider"></div>
+            <a href="/settings" class="sb-icon" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></a>
+        </div>
+        <div class="sidebar-bottom">
+            <div class="sb-profile" title="AI Assistant"><div class="sb-profile-inner">🔮</div></div>
+            <div class="sb-profile-label">AI<br>ASSISTANT</div>
+        </div>
+    </nav>
+
+    <!-- Top Bar -->
+    <div class="topbar">
+        <div class="topbar-tabs">
+            <a href="/" class="tab-btn active">Home</a>
+            <a href="/knowledge" class="tab-btn">Knowledge Web</a>
+            <a href="/graph" class="tab-btn">Graph View</a>
+            <a href="/hub" class="tab-btn">Personal Hub</a>
+            <a href="/settings" class="tab-btn">Settings</a>
+        </div>
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="searchInput" placeholder="Search knowledge web..." aria-label="Search" oninput="handleSearch(this.value)">
+        </div>
+        <div class="topbar-right">
+                        <span class="topbar-time" id="topTime"></span>
+                        <button class="ctrl-btn" onclick="toggleChat()" title="AI Chat" style="width:34px;height:34px">💬</button>
+        </div>
+    </div>
+
+    <!-- Search Panel -->
+    <div class="search-panel" id="searchPanel">
+        <input type="text" id="searchPanelInput" placeholder="Search your entire knowledge base..." autofocus oninput="liveSearch(this.value)">
+        <div class="search-results" id="searchResults"></div>
+        <div style="margin-top:12px;font-size:11px;color:var(--text-muted)">Press Esc to close</div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="dashboard">
+        <div class="welcome" style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+                <h1>🧠 Second Brain</h1>
+                <p id="welcomeMsg">Your personal knowledge dashboard</p>
+            </div>
+        </div>
+
+        <!-- Customize Bar -->
+        <div class="customize-bar" id="customizeBar">
+            <span style="font-size:13px;font-weight:600;color:var(--accent)">✏️ Customize Dashboard</span>
+            <span style="font-size:11px;color:var(--text-dim)">Drag cards to reorder · Click 👁 to toggle visibility</span>
+            <div style="margin-left:auto;display:flex;gap:8px">
+                <button onclick="resetLayout()" style="padding:5px 12px;font-size:11px;background:rgba(255,255,255,0.04);color:var(--text-dim);border:1px solid var(--border);border-radius:6px;cursor:pointer">Reset</button>
+                <button onclick="toggleCustomize()" style="padding:5px 12px;font-size:11px;background:var(--accent);color:white;border:none;border-radius:6px;cursor:pointer">Done</button>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-row" id="statsRow">
+            <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent)">📊</div><div class="stat-value" id="statTotal">—</div><div class="stat-label">Total Items</div></div>
+            <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green)">📝</div><div class="stat-value" id="statNotes">—</div><div class="stat-label">Notes</div></div>
+            <div class="stat-card"><div class="stat-icon" style="background:var(--cyan-dim);color:var(--cyan)">💻</div><div class="stat-value" id="statCode">—</div><div class="stat-label">Code</div></div>
+            <div class="stat-card"><div class="stat-icon" style="background:var(--amber-dim);color:var(--amber)">🔖</div><div class="stat-value" id="statBookmarks">—</div><div class="stat-label">Bookmarks</div></div>
+            <div class="stat-card"><div class="stat-icon" style="background:var(--rose-dim);color:var(--rose)">✅</div><div class="stat-value" id="statTasks">—</div><div class="stat-label">Tasks</div></div>
+            <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue)">🧬</div><div class="stat-value" id="statEmbedded">—</div><div class="stat-label">Embedded</div></div>
+        </div>
+
+        <!-- Quick Links + Mini Graph -->
+        <div class="section-grid" id="row1">
+            <!-- Quick Links -->
+            <div class="card" draggable="false" data-card="quicknav" data-row="0" data-col="0">
+                <div class="card-header">
+                    <span class="card-title">Quick Navigation</span>
+                    <span class="card-badge" style="background:var(--accent-dim);color:var(--accent)">6 pages</span>
+                </div>
+                <div class="card-body">
+                    <div class="quick-links">
+                        <a href="/hub" class="quick-link">
+                            <div class="quick-link-icon" style="background:var(--green-dim);color:var(--green)">💻</div>
+                            <div class="quick-link-label">Personal Hub</div>
+                            <div class="quick-link-desc">Projects & repos</div>
+                        </a>
+                        <a href="/graph" class="quick-link">
+                            <div class="quick-link-icon" style="background:var(--accent-dim);color:var(--accent)">🔗</div>
+                            <div class="quick-link-label">Knowledge Graph</div>
+                            <div class="quick-link-desc">Interactive vis.js</div>
+                        </a>
+                        <a href="/skills" class="quick-link">
+                            <div class="quick-link-icon" style="background:var(--amber-dim);color:var(--amber)">⭐</div>
+                            <div class="quick-link-label">Skills</div>
+                            <div class="quick-link-desc">Skill badges & radar</div>
+                        </a>
+                        <a href="/browser" class="quick-link">
+                            <div class="quick-link-icon" style="background:var(--cyan-dim);color:var(--cyan)">📋</div>
+                            <div class="quick-link-label">Browser</div>
+                            <div class="quick-link-desc">Tree view explorer</div>
+                        </a>
+                        <a href="/colleagues" class="quick-link">
+                            <div class="quick-link-icon" style="background:var(--blue-dim);color:var(--blue)">👥</div>
+                            <div class="quick-link-label">Colleagues</div>
+                            <div class="quick-link-desc">Team & sharing</div>
+                        </a>
+                        <a href="/settings" class="quick-link">
+                            <div class="quick-link-icon" style="background:var(--rose-dim);color:var(--rose)">⚙️</div>
+                            <div class="quick-link-label">Settings</div>
+                            <div class="quick-link-desc">API keys & export</div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mini Knowledge Graph -->
+            <div class="card" draggable="false" data-card="graph" data-row="0" data-col="1">
+                <div class="card-header">
+                    <span class="card-title">Knowledge Web</span>
+                    <div style="display:flex;gap:10px;align-items:center">
+                        <span style="font-size:10px;color:var(--text-muted)" id="graphNodeCount"></span>
+                        <a href="/knowledge" style="font-size:11px;color:var(--accent);text-decoration:none">Open Knowledge Web →</a>
+                    </div>
+                </div>
+                <div class="card-body" style="padding:8px">
+                    <div class="graph-widget">
+                        <canvas id="miniGraph"></canvas>
+                        <div class="graph-widget-overlay">
+                            <button class="graph-widget-btn" onclick="miniZoomIn()" title="Zoom in">+</button>
+                            <button class="graph-widget-btn" onclick="miniZoomOut()" title="Zoom out">−</button>
+                            <button class="graph-widget-btn" onclick="miniFit()" title="Fit">⊡</button>
+                            <button class="graph-widget-btn" onclick="toggleMiniPhysics()" title="Physics" id="miniPhysicsBtn">⚙</button>
+                        </div>
+                        <div class="mini-physics-panel" id="miniPhysicsPanel" style="display:none;position:absolute;bottom:40px;right:8px;background:rgba(13,17,23,0.95);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:8px;padding:10px 12px;z-index:10;min-width:180px">
+                            <div style="font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Physics Controls</div>
+                            <div style="margin-bottom:6px"><span style="font-size:10px;color:var(--text-dim)">Rotation</span><span style="font-size:10px;color:var(--accent);float:right" id="rotVal">1.0×</span><input type="range" min="0" max="3" step="0.1" value="1" style="width:100%;height:3px;accent-color:var(--accent)" oninput="setRotation(this.value)"></div>
+                            <div style="margin-bottom:6px"><span style="font-size:10px;color:var(--text-dim)">Spread</span><span style="font-size:10px;color:var(--accent);float:right" id="spreadVal">1.0×</span><input type="range" min="0.3" max="3" step="0.1" value="1" style="width:100%;height:3px;accent-color:var(--accent)" oninput="setSpread(this.value)"></div>
+                            <div><span style="font-size:10px;color:var(--text-dim)">Glow</span><span style="font-size:10px;color:var(--accent);float:right" id="glowVal">1.0×</span><input type="range" min="0" max="2" step="0.1" value="1" style="width:100%;height:3px;accent-color:var(--accent)" oninput="setGlow(this.value)"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Items + Activity -->
+        <div class="section-grid three" id="row2">
+            <!-- Recent Items -->
+            <div class="card" style="grid-column: span 2" draggable="false" data-card="recent" data-row="1" data-col="0">
+                <div class="card-header">
+                    <span class="card-title">Recent Items</span>
+                    <a href="/browser" style="font-size:11px;color:var(--accent);text-decoration:none">View all →</a>
+                </div>
+                <div class="card-body" style="padding:8px 12px;max-height:360px;overflow-y:auto">
+                    <div class="item-list" id="recentItems"></div>
+                </div>
+            </div>
+
+            <!-- Activity Feed -->
+            <div class="card" draggable="false" data-card="activity" data-row="1" data-col="1">
+                <div class="card-header">
+                    <span class="card-title">Activity</span>
+                    <span class="card-badge" style="background:var(--green-dim);color:var(--green)" id="onlineCount">0 online</span>
+                </div>
+                <div class="card-body" style="max-height:360px;overflow-y:auto">
+                    <div id="activityFeed"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Type Distribution + Tags -->
+        <div class="section-grid" id="row3">
+            <!-- Type Distribution -->
+            <div class="card" draggable="false" data-card="distribution" data-row="2" data-col="0">
+                <div class="card-header">
+                    <span class="card-title">Content Distribution</span>
+                </div>
+                <div class="card-body">
+                    <div id="typeBars"></div>
+                </div>
+            </div>
+
+            <!-- Top Tags -->
+            <div class="card" draggable="false" data-card="tags" data-row="2" data-col="1">
+                <div class="card-header">
+                    <span class="card-title">Top Tags</span>
+                    <a href="/skills" style="font-size:11px;color:var(--accent);text-decoration:none">All skills →</a>
+                </div>
+                <div class="card-body" id="topTags" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+            </div>
+        </div>
+
+        <!-- System Health -->
+        <div class="card" style="margin-bottom:24px" draggable="false" data-card="health" data-row="3" data-col="0">
+            <div class="card-header">
+                <span class="card-title">System Health</span>
+                <span class="card-badge" style="background:var(--green-dim);color:var(--green)" id="healthStatus">● Checking...</span>
+            </div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px" id="healthGrid">
+                    <div id="healthServer"></div>
+                    <div id="healthDB"></div>
+                    <div id="healthEmbed"></div>
+                    <div id="healthAPI"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Memory Usage Chart -->
+        <div class="card" style="margin-bottom:24px" draggable="false" data-card="memory" data-row="4" data-col="0">
+            <div class="card-header">
+                <span class="card-title">Memory Usage Over Time</span>
+                <div style="display:flex;gap:12px;align-items:center">
+                    <span style="font-size:10px;color:var(--text-muted)" id="memNow">—</span>
+                    <span style="font-size:10px;color:var(--text-muted)" id="memPeak">Peak: —</span>
+                </div>
+            </div>
+            <div class="card-body" style="padding:8px 12px">
+                <canvas id="memChart" style="width:100%;height:180px"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mini Graph Tooltip -->
+    <div id="miniGraphTooltip" style="position:fixed;pointer-events:none;z-index:200;background:rgba(22,27,34,0.95);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:8px;padding:8px 12px;max-width:240px;opacity:0;transition:opacity 0.12s;font-size:12px;color:var(--text);box-shadow:0 4px 12px rgba(0,0,0,0.3)"></div>
+
+    <!-- Customize FAB -->
+    <button class="customize-btn" id="customizeBtn" onclick="toggleCustomize()" title="Customize Dashboard">✏️</button>
+
+    <!-- Chat Panel -->
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-header">
+            <h3>💬 AI Chat</h3>
+            <button class="chat-close" onclick="toggleChat()">&times;</button>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div style="text-align:center;color:var(--text-dim);padding:20px;font-size:12px;">
+                Ask me anything about your knowledge base.<br>I search your memories and use Gemini to answer.
+            </div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="chatInput" placeholder="Ask about your memories..." onkeydown="if(event.key==='Enter')sendChat()">
+            <button onclick="sendChat()">Send</button>
+        </div>
+    </div>
+
+    <script src="/vendor/socket.io.min.js?v=1787384686">
+    document.addEventListener('click', function(e) {
+        var cp = document.getElementById('chatPanel');
+        if (cp && cp.classList.contains('open') && !e.target.closest('.chat-panel') && !e.target.closest('[onclick*="toggleChat"]')) {
+            cp.classList.remove('open');
+        }
+    });
+    </script>
+    <script>
+    // ═══════════════════════════════════════════════════════════════════════
+    // CONFIG
+    // ═══════════════════════════════════════════════════════════════════════
+    const API_URL = window.location.origin + '/api/v1';
+    let apiKey = localStorage.getItem('brain_api_key') || '';
+    let allItems = [];
+    let chatHistory = JSON.parse(localStorage.getItem('brain_chat_history') || '[]'); if (!Array.isArray(chatHistory)) chatHistory = [];
+    let miniGraphNodes = [];
+    let miniZoom = 1;
+    let miniAnimFrame = null;
+
+    const TYPE_COLORS = { note: '#4ade80', code: '#22d3ee', bookmark: '#fbbf24', task: '#f87171' };
+    const TYPE_ICONS = { note: '📝', code: '💻', bookmark: '🔖', task: '✅' };
+    const HUB_COLORS = { topics: '#4ade80', repos: '#a78bfa', skills: '#fbbf24' };
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // AUTH
+    // ═══════════════════════════════════════════════════════════════════════
+    async function checkAuthAndLoad() {
+        try {
+            const status = await fetch(API_URL.replace('/api/v1','') + '/api/v1/auth/status').then(r=>r.json());
+            if (status.auth_enabled && !apiKey) { showAuth(); return; }
+            if (apiKey) {
+                const res = await fetch(API_URL+'/stats', {headers:{'X-API-Key':apiKey}});
+                if (!res.ok) { apiKey=''; localStorage.removeItem('brain_api_key'); showAuth(); return; }
+            }
+            hideAuth(); await loadDashboard();
+        } catch(e) { showAuth(); }
+    }
+    function showAuth() { document.getElementById('authOverlay').style.display = 'flex'; }
+    function hideAuth() { document.getElementById('authOverlay').style.display = 'none'; }
+    document.getElementById('authConnectBtn').addEventListener('click', async () => {
+        const k = document.getElementById('authKeyInput').value.trim();
+        if (!k) return;
+        apiKey = k; localStorage.setItem('brain_api_key', k);
+        try {
+            const res = await fetch(API_URL+'/stats', {headers:{'X-API-Key':apiKey}});
+            if (!res.ok) throw new Error();
+            hideAuth(); await loadDashboard();
+        } catch(e) {
+            document.getElementById('authError').textContent = 'Invalid key. Try again.';
+            document.getElementById('authError').style.display = 'block';
+            apiKey = ''; localStorage.removeItem('brain_api_key');
+        }
+    });
+    document.getElementById('authKeyInput').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('authConnectBtn').click(); });
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // DATA
+    // ═══════════════════════════════════════════════════════════════════════
+    async function apiFetch(path, opts={}) {
+        const h = {'Content-Type':'application/json'};
+        if (apiKey) h['X-API-Key'] = apiKey;
+        const res = await fetch(API_URL+path, {headers:h, ...opts, body:opts.body?JSON.stringify(opts.body):undefined});
+        if (!res.ok) throw new Error('HTTP '+res.status);
+        return res.json();
+    }
+
+    async function loadDashboard() {
+        try {
+            // Load stats + items in parallel
+            const [stats, items] = await Promise.all([
+                apiFetch('/stats'),
+                apiFetch('/items?limit=200')
+            ]);
+            allItems = items;
+
+            renderStats(stats);
+            renderRecentItems(items);
+            renderTypeBars(stats);
+            renderTopTags(items);
+            renderActivityFeed();
+            buildMiniGraph(items);
+            startClock();
+            updateTimeGreeting();
+            loadSystemHealth();
+        } catch(e) { console.error('Dashboard load error:', e); }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // RENDER
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function renderStats(stats) {
+        const bt = stats.by_type || {};
+        document.getElementById('statTotal').textContent = stats.total_items || 0;
+        document.getElementById('statNotes').textContent = bt.note || 0;
+        document.getElementById('statCode').textContent = bt.code || 0;
+        document.getElementById('statBookmarks').textContent = bt.bookmark || 0;
+        document.getElementById('statTasks').textContent = bt.task || 0;
+        document.getElementById('statEmbedded').textContent = stats.embedded_items || 0;
+    }
+
+    function renderRecentItems(items) {
+        const sorted = [...items].sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)).slice(0, 12);
+        const list = document.getElementById('recentItems');
+        list.innerHTML = sorted.map(item => {
+            const tags = Array.isArray(item.tags) ? item.tags : JSON.parse(item.tags || '[]');
+            const typeColor = TYPE_COLORS[item.item_type] || '#94a3b8';
+            const tagHtml = tags.slice(0, 3).map(t => '<span class="item-tag">' + esc(t) + '</span>').join('');
+            const time = timeAgo(item.updated_at);
+            return '<div class="item-row" onclick="window.location.href=\'/browser\'">' +
+                '<div class="item-type-dot" style="background:'+typeColor+'"></div>' +
+                '<span class="item-type-badge" style="background:'+typeColor+'18;color:'+typeColor+'">'+item.item_type+'</span>' +
+                '<span class="item-title">' + esc(item.title) + '</span>' +
+                '<div class="item-tags">'+tagHtml+'</div>' +
+                '<span class="item-time">'+time+'</span>' +
+            '</div>';
+        }).join('');
+    }
+
+    function renderTypeBars(stats) {
+        const bt = stats.by_type || {};
+        const total = stats.total_items || 1;
+        const types = [
+            { key: 'note', label: 'Notes', color: '#4ade80' },
+            { key: 'code', label: 'Code', color: '#22d3ee' },
+            { key: 'bookmark', label: 'Bookmarks', color: '#fbbf24' },
+            { key: 'task', label: 'Tasks', color: '#f87171' },
+        ];
+        document.getElementById('typeBars').innerHTML = types.map(t => {
+            const count = bt[t.key] || 0;
+            const pct = Math.round((count / total) * 100);
+            return '<div style="margin-bottom:12px">' +
+                '<div style="display:flex;justify-content:space-between;margin-bottom:4px">' +
+                    '<span style="font-size:12px;font-weight:500">'+t.label+'</span>' +
+                    '<span style="font-size:11px;color:var(--text-dim)">'+count+' ('+pct+'%)</span>' +
+                '</div>' +
+                '<div style="height:6px;background:rgba(255,255,255,0.04);border-radius:3px;overflow:hidden">' +
+                    '<div style="height:100%;width:'+pct+'%;background:'+t.color+';border-radius:3px;transition:width 0.6s ease"></div>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    function renderTopTags(items) {
+        const tagCount = {};
+        items.forEach(item => {
+            const tags = Array.isArray(item.tags) ? item.tags : JSON.parse(item.tags || '[]');
+            tags.forEach(t => { tagCount[t] = (tagCount[t] || 0) + 1; });
+        });
+        const top = Object.entries(tagCount).sort((a,b) => b[1] - a[1]).slice(0, 20);
+        document.getElementById('topTags').innerHTML = top.map(([tag, count]) =>
+            '<a href="/skills" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.15);border-radius:10px;font-size:11px;color:var(--accent);transition:all 0.15s" onmouseover="this.style.background=\'rgba(139,92,246,0.15)\'" onmouseout="this.style.background=\'rgba(139,92,246,0.08)\'">' +
+                '<span>#'+esc(tag)+'</span>' +
+                '<span style="font-size:9px;color:var(--text-muted)">'+count+'</span>' +
+            '</a>'
+        ).join('');
+    }
+
+    function renderActivityFeed() {
+        const activities = [
+            { user: 'System', action: 'Brain initialized', color: '#8b5cf6', time: 'Today' },
+            { user: 'You', action: 'Imported 100 Graphify repos', color: '#4ade80', time: 'Today' },
+            { user: 'You', action: 'Added BARQ project memory', color: '#4ade80', time: 'Yesterday' },
+            { user: 'You', action: 'Connected Gemini AI chat', color: '#22d3ee', time: 'Yesterday' },
+            { user: 'You', action: 'Created career ops knowledge', color: '#4ade80', time: '2 days ago' },
+        ];
+        document.getElementById('activityFeed').innerHTML = activities.map(a =>
+            '<div class="activity-item">' +
+                '<div class="activity-dot" style="background:'+a.color+'"></div>' +
+                '<div><div class="activity-text"><strong>'+esc(a.user)+'</strong> '+esc(a.action)+'</div>' +
+                '<div class="activity-time">'+a.time+'</div></div>' +
+            '</div>'
+        ).join('');
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // SYSTEM HEALTH
+    // ═══════════════════════════════════════════════════════════════════════
+
+    async function loadSystemHealth() {
+        try {
+            const data = await apiFetch('/system');
+            renderHealth(data);
+            recordMemorySnapshot(data);
+            renderMemoryChart();
+        } catch(e) {
+            document.getElementById('healthStatus').innerHTML = '● Offline';
+            document.getElementById('healthStatus').className = 'card-badge';
+            document.getElementById('healthStatus').style.background = 'var(--rose-dim)';
+            document.getElementById('healthStatus').style.color = 'var(--rose)';
+        }
+    }
+
+    function renderHealth(data) {
+        const s = data.server || {};
+        const db = data.database || {};
+        const em = data.embeddings || {};
+        const api = data.api || {};
+
+        // Status badge
+        document.getElementById('healthStatus').innerHTML = '● Online';
+        document.getElementById('healthStatus').className = 'card-badge';
+        document.getElementById('healthStatus').style.background = 'var(--green-dim)';
+        document.getElementById('healthStatus').style.color = 'var(--green)';
+
+        // Server
+        const uptime = typeof s.uptime_seconds === 'number' ? formatUptime(s.uptime_seconds) : s.uptime_seconds || '—';
+        const mem = s.memory_rss_mb || '—';
+        document.getElementById('healthServer').innerHTML =
+            '<div class="health-group">' +
+                '<div class="health-group-title">🖥️ Server</div>' +
+                '<div class="health-row"><span class="health-label">Python</span><span class="health-value">' + esc(s.python_version || '—') + '</span></div>' +
+                '<div class="health-row"><span class="health-label">Platform</span><span class="health-value">' + esc(s.architecture || '—') + '</span></div>' +
+                '<div class="health-row"><span class="health-label">Uptime</span><span class="health-value health-status-ok">' + uptime + '</span></div>' +
+                '<div class="health-row"><span class="health-label">Memory (RSS)</span><span class="health-value">' + mem + ' MB</span></div>' +
+            '</div>';
+
+        // Database
+        const dbSize = db.size_mb || 0;
+        const maxSize = 100;
+        const dbPct = Math.min(100, (dbSize / maxSize) * 100);
+        const dbColor = dbPct > 80 ? 'var(--rose)' : dbPct > 50 ? 'var(--amber)' : 'var(--green)';
+        document.getElementById('healthDB').innerHTML =
+            '<div class="health-group">' +
+                '<div class="health-group-title">🗄️ Database</div>' +
+                '<div class="health-row"><span class="health-label">File Size</span><span class="health-value">' + dbSize + ' MB</span></div>' +
+                '<div class="health-row"><span class="health-label">Items</span><span class="health-value">' + (db.tables?.items || 0) + '</span></div>' +
+                '<div class="health-row"><span class="health-label">Embeddings</span><span class="health-value">' + (db.tables?.embeddings || 0) + '</span></div>' +
+                '<div class="health-row"><span class="health-label">FTS</span><span class="health-value ' + (db.fts_enabled ? 'health-status-ok' : 'health-status-err') + '">' + (db.fts_enabled ? 'Enabled' : 'Disabled') + '</span></div>' +
+                '<div class="health-bar"><div class="health-bar-fill" style="width:' + dbPct + '%;background:' + dbColor + '"></div></div>' +
+            '</div>';
+
+        // Embeddings
+        const coverage = em.coverage_percent || 0;
+        const covColor = coverage > 90 ? 'var(--green)' : coverage > 50 ? 'var(--amber)' : 'var(--rose)';
+        document.getElementById('healthEmbed').innerHTML =
+            '<div class="health-group">' +
+                '<div class="health-group-title">🧬 Embeddings</div>' +
+                '<div class="health-row"><span class="health-label">Model</span><span class="health-value">' + esc(em.model_name || '—') + '</span></div>' +
+                '<div class="health-row"><span class="health-label">Library</span><span class="health-value">' + esc(em.model_library || '—') + '</span></div>' +
+                '<div class="health-row"><span class="health-label">Dimensions</span><span class="health-value">' + (em.vector_dimensions || '—') + '</span></div>' +
+                '<div class="health-row"><span class="health-label">Coverage</span><span class="health-value" style="color:' + covColor + '">' + coverage + '%</span></div>' +
+                '<div class="health-bar"><div class="health-bar-fill" style="width:' + coverage + '%;background:' + covColor + '"></div></div>' +
+            '</div>';
+
+        // API
+        const keys = api.key_count || 0;
+        const items = api.total_items || 0;
+        document.getElementById('healthAPI').innerHTML =
+            '<div class="health-group">' +
+                '<div class="health-group-title">🔌 API</div>' +
+                '<div class="health-row"><span class="health-label">Status</span><span class="health-value health-status-ok">Healthy</span></div>' +
+                '<div class="health-row"><span class="health-label">API Keys</span><span class="health-value">' + keys + '</span></div>' +
+                '<div class="health-row"><span class="health-label">Total Items</span><span class="health-value">' + items + '</span></div>' +
+                '<div class="health-row"><span class="health-label">Gemini</span><span class="health-value ' + (localStorage.getItem('brain_gemini_key') ? 'health-status-ok' : 'health-status-warn') + '">' + (localStorage.getItem('brain_gemini_key') ? 'Configured' : 'Not set') + '</span></div>' +
+            '</div>';
+    }
+
+    function formatUptime(sec) {
+        if (typeof sec !== 'number') return '—';
+        const d = Math.floor(sec / 86400);
+        const h = Math.floor((sec % 86400) / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        if (d > 0) return d + 'd ' + h + 'h';
+        if (h > 0) return h + 'h ' + m + 'm';
+        return m + 'm';
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // MEMORY USAGE CHART
+    // ═══════════════════════════════════════════════════════════════════════
+
+    const MAX_SNAPSHOTS = 60;
+
+    function getSnapshots() {
+        try { return JSON.parse(localStorage.getItem('brain_mem_snapshots') || '[]'); } catch(e) { return []; }
+    }
+
+    function saveSnapshots(snaps) {
+        localStorage.setItem('brain_mem_snapshots', JSON.stringify(snaps.slice(-MAX_SNAPSHOTS)));
+    }
+
+    function recordMemorySnapshot(data) {
+        const s = data.server || {};
+        const db = data.database || {};
+        const em = data.embeddings || {};
+        const snaps = getSnapshots();
+        const now = Date.now();
+
+        // Only record if >60s since last snapshot (or first time)
+        if (snaps.length > 0 && (now - snaps[snaps.length-1].t) < 60000) return;
+
+        snaps.push({
+            t: now,
+            mem: s.memory_rss_mb || 0,
+            db: db.size_mb || 0,
+            items: (db.tables || {}).items || 0,
+            embeds: (db.tables || {}).embeddings || 0,
+        });
+        saveSnapshots(snaps);
+    }
+
+    function renderMemoryChart() {
+        const canvas = document.getElementById('memChart');
+        if (!canvas) return;
+        const container = canvas.parentElement;
+        const rect = container.getBoundingClientRect();
+        const w = rect.width || 800;
+        const h = 180;
+        const dpr = devicePixelRatio || 1;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+
+        const snaps = getSnapshots();
+        if (snaps.length < 2) {
+            ctx.fillStyle = '#7d8590';
+            ctx.font = '12px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Collecting data... chart updates every 60s', w/2, h/2);
+            return;
+        }
+
+        const pad = { top: 20, right: 60, bottom: 30, left: 50 };
+        const cw = w - pad.left - pad.right;
+        const ch = h - pad.top - pad.bottom;
+
+        // Find ranges
+        const memVals = snaps.map(s => s.mem);
+        const dbVals = snaps.map(s => s.db);
+        const memMax = Math.max(...memVals) * 1.15;
+        const memMin = Math.min(...memVals) * 0.85;
+        const dbMax = Math.max(...dbVals) * 1.15;
+        const dbMin = 0;
+        const timeMin = snaps[0].t;
+        const timeMax = snaps[snaps.length-1].t;
+        const timeRange = Math.max(timeMax - timeMin, 1);
+
+        function x(i) { return pad.left + ((snaps[i].t - timeMin) / timeRange) * cw; }
+        function yMem(v) { return pad.top + ch - ((v - memMin) / (memMax - memMin || 1)) * ch; }
+        function yDb(v) { return pad.top + ch - ((v - dbMin) / (dbMax - dbMin || 1)) * ch; }
+
+        // Grid lines
+        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const gy = pad.top + (ch / 4) * i;
+            ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(w - pad.right, gy); ctx.stroke();
+        }
+
+        // Y-axis labels (memory)
+        ctx.fillStyle = '#7d8590';
+        ctx.font = '10px Inter, monospace';
+        ctx.textAlign = 'right';
+        for (let i = 0; i <= 4; i++) {
+            const val = memMin + ((memMax - memMin) / 4) * (4 - i);
+            ctx.fillText(Math.round(val) + ' MB', pad.left - 6, pad.top + (ch / 4) * i + 3);
+        }
+
+        // Y-axis labels (DB) on right
+        ctx.textAlign = 'left';
+        for (let i = 0; i <= 4; i++) {
+            const val = dbMin + ((dbMax - dbMin) / 4) * (4 - i);
+            ctx.fillText(val.toFixed(1) + ' MB', w - pad.right + 6, pad.top + (ch / 4) * i + 3);
+        }
+
+        // X-axis labels
+        ctx.textAlign = 'center';
+        const xTicks = Math.min(snaps.length, 6);
+        for (let i = 0; i < xTicks; i++) {
+            const idx = Math.floor((i / (xTicks - 1)) * (snaps.length - 1));
+            const d = new Date(snaps[idx].t);
+            const label = d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+            ctx.fillText(label, x(idx), h - 8);
+        }
+
+        // Draw DB area fill
+        ctx.beginPath();
+        ctx.moveTo(x(0), yDb(snaps[0].db));
+        for (let i = 1; i < snaps.length; i++) ctx.lineTo(x(i), yDb(snaps[i].db));
+        ctx.lineTo(x(snaps.length-1), pad.top + ch);
+        ctx.lineTo(x(0), pad.top + ch);
+        ctx.closePath();
+        const dbGrad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
+        dbGrad.addColorStop(0, 'rgba(139,92,246,0.15)');
+        dbGrad.addColorStop(1, 'rgba(139,92,246,0.01)');
+        ctx.fillStyle = dbGrad;
+        ctx.fill();
+
+        // Draw DB line
+        ctx.beginPath();
+        ctx.moveTo(x(0), yDb(snaps[0].db));
+        for (let i = 1; i < snaps.length; i++) ctx.lineTo(x(i), yDb(snaps[i].db));
+        ctx.strokeStyle = '#8b5cf6';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Draw memory area fill
+        ctx.beginPath();
+        ctx.moveTo(x(0), yMem(snaps[0].mem));
+        for (let i = 1; i < snaps.length; i++) ctx.lineTo(x(i), yMem(snaps[i].mem));
+        ctx.lineTo(x(snaps.length-1), pad.top + ch);
+        ctx.lineTo(x(0), pad.top + ch);
+        ctx.closePath();
+        const memGrad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
+        memGrad.addColorStop(0, 'rgba(74,222,128,0.2)');
+        memGrad.addColorStop(1, 'rgba(74,222,128,0.01)');
+        ctx.fillStyle = memGrad;
+        ctx.fill();
+
+        // Draw memory line
+        ctx.beginPath();
+        ctx.moveTo(x(0), yMem(snaps[0].mem));
+        for (let i = 1; i < snaps.length; i++) ctx.lineTo(x(i), yMem(snaps[i].mem));
+        ctx.strokeStyle = '#4ade80';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Dots on last point
+        const last = snaps[snaps.length - 1];
+        ctx.beginPath(); ctx.arc(x(snaps.length-1), yMem(last.mem), 4, 0, Math.PI*2);
+        ctx.fillStyle = '#4ade80'; ctx.fill();
+        ctx.strokeStyle = '#0d1117'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.beginPath(); ctx.arc(x(snaps.length-1), yDb(last.db), 4, 0, Math.PI*2);
+        ctx.fillStyle = '#8b5cf6'; ctx.fill();
+        ctx.strokeStyle = '#0d1117'; ctx.lineWidth = 2; ctx.stroke();
+
+        // Legend
+        ctx.font = '10px Inter, sans-serif';
+        ctx.textAlign = 'left';
+        const lx = pad.left + 8, ly = pad.top + 10;
+        ctx.fillStyle = '#4ade80'; ctx.fillRect(lx, ly - 4, 12, 3);
+        ctx.fillStyle = '#7d8590'; ctx.fillText('Memory (MB)', lx + 16, ly);
+        ctx.fillStyle = '#8b5cf6'; ctx.fillRect(lx + 100, ly - 4, 12, 3);
+        ctx.fillStyle = '#7d8590'; ctx.fillText('DB Size (MB)', lx + 116, ly);
+
+        // Update labels
+        document.getElementById('memNow').textContent = 'Current: ' + Math.round(last.mem) + ' MB';
+        const peak = Math.max(...memVals);
+        document.getElementById('memPeak').textContent = 'Peak: ' + Math.round(peak) + ' MB';
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // MINI KNOWLEDGE GRAPH
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function buildMiniGraph(items) {
+        if (miniAnimFrame) { cancelAnimationFrame(miniAnimFrame); miniAnimFrame = null; }
+        const canvas = document.getElementById('miniGraph');
+        const container = canvas.parentElement;
+        let rect = container.getBoundingClientRect();
+        // Fallback if layout hasn't happened yet
+        let w = rect.width || 600, h = rect.height || 320;
+        canvas.width = w * devicePixelRatio;
+        canvas.height = h * devicePixelRatio;
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        const ctx = canvas.getContext('2d');
+        ctx.scale(devicePixelRatio, devicePixelRatio);
+
+        // Resize observer to fix sizing on layout changes
+        const ro = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                const nw = entry.contentRect.width;
+                const nh = entry.contentRect.height;
+                if (nw > 0 && nh > 0 && (Math.abs(nw - w) > 5 || Math.abs(nh - h) > 5)) {
+                    w = nw; h = nh;
+                    canvas.width = w * devicePixelRatio;
+                    canvas.height = h * devicePixelRatio;
+                    canvas.style.width = w + 'px';
+                    canvas.style.height = h + 'px';
+                    ctx.setTransform(1,0,0,1,0,0);
+                    ctx.scale(devicePixelRatio, devicePixelRatio);
+                    cx = w / 2; cy = h / 2;
+                }
+            }
+        });
+        ro.observe(container);
+
+        let cx = w / 2, cy = h / 2;
+
+        // Classify items
+        const topics = [], repos = [], skillTags = {};
+        items.forEach(item => {
+            const tags = Array.isArray(item.tags) ? item.tags : JSON.parse(item.tags || '[]');
+            if (tags.includes('graphify')) repos.push(item); else topics.push(item);
+            tags.forEach(t => { skillTags[t] = (skillTags[t] || 0) + 1; });
+        });
+
+        const topSkills = Object.entries(skillTags).sort((a,b) => b[1]-a[1]).slice(0, 15);
+        miniGraphNodes = [];
+
+        // Place nodes
+        function placeNodes(list, hubKey, baseAngle, baseDist) {
+            const spread = Math.PI * 0.45;
+            list.forEach((item, i) => {
+                const t = list.length > 1 ? (i / (list.length - 1)) - 0.5 : 0;
+                const angle = baseAngle + t * spread;
+                const dist = baseDist + (Math.random()-0.5) * 30;
+                miniGraphNodes.push({
+                    x: cx + Math.cos(angle) * dist, y: cy + Math.sin(angle) * dist,
+                    r: 1.5 + Math.min(item.content.length / 800, 2),
+                    color: HUB_COLORS[hubKey], hub: hubKey,
+                    title: item.title || '',
+                    item_type: item.item_type || hubKey,
+                    tags: Array.isArray(item.tags) ? item.tags : [],
+                    vx: 0, vy: 0, orbitAngle: angle, orbitRadius: dist,
+                    orbitSpeed: 0.0002 * (0.5 + Math.random() * 0.5),
+                });
+            });
+        }
+
+        function recalcPositions() {
+            cx = w / 2; cy = h / 2;
+            const dist = Math.min(w, h) * 0.28;
+            miniGraphNodes.forEach(n => {
+                n.orbitRadius = dist + (Math.random()-0.5) * 30;
+                n.x = cx + Math.cos(n.orbitAngle) * n.orbitRadius;
+                n.y = cy + Math.sin(n.orbitAngle) * n.orbitRadius;
+            });
+        }
+
+        placeNodes(topics, 'topics', Math.PI * 0.85, Math.min(w,h) * 0.28);
+        placeNodes(repos, 'repos', Math.PI * 0.15, Math.min(w,h) * 0.28);        topSkills.forEach(([tag, count], i) => {
+            const t = topSkills.length > 1 ? (i / (topSkills.length-1)) - 0.5 : 0;
+            const angle = Math.PI * 0.5 + t * Math.PI * 0.35;
+            const dist = Math.min(w,h) * 0.28;
+            miniGraphNodes.push({
+                x: cx + Math.cos(angle) * dist, y: cy + Math.sin(angle) * dist,
+                r: 1 + Math.min(count * 0.5, 3), color: HUB_COLORS.skills, hub: 'skills',
+                title: '#' + tag + ' (' + count + ' items)',
+                item_type: 'skill',
+                tags: [tag],
+                vx: 0, vy: 0, orbitAngle: angle, orbitRadius: dist,
+                orbitSpeed: 0.00015,
+            });
+        });
+
+        // Hub labels
+        function getLabels() {
+            const ld = Math.min(w,h) * 0.17;
+            return [
+                { text: 'MY PROJECTS', x: cx + Math.cos(Math.PI*0.85)*ld, y: cy + Math.sin(Math.PI*0.85)*ld, color: HUB_COLORS.topics },
+                { text: 'REPOSITORIES', x: cx + Math.cos(Math.PI*0.15)*ld, y: cy + Math.sin(Math.PI*0.15)*ld, color: HUB_COLORS.repos },
+                { text: 'SKILLS', x: cx + Math.cos(Math.PI*0.5)*ld, y: cy + Math.sin(Math.PI*0.5)*ld, color: HUB_COLORS.skills },
+            ];
+        }
+
+        // Draw function
+        function drawMini() {
+            const time = performance.now() * 0.001;
+            ctx.clearRect(0, 0, w, h);
+            ctx.fillStyle = '#0d1117';
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.save();
+            ctx.translate(w/2, h/2);
+            ctx.scale(miniZoom, miniZoom);
+            ctx.translate(-w/2, -h/2);
+
+            // Core glow
+            const corePulse = 1 + Math.sin(time * 1.5) * 0.08;
+            const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 20 * corePulse);
+            glow.addColorStop(0, 'rgba(251,191,36,0.3)');
+            glow.addColorStop(1, 'rgba(251,191,36,0)');
+            ctx.fillStyle = glow;
+            ctx.beginPath(); ctx.arc(cx, cy, 20 * corePulse, 0, Math.PI*2); ctx.fill();
+
+            // Core crystal
+            const cg = ctx.createRadialGradient(cx-2, cy-3, 1, cx, cy, 10);
+            cg.addColorStop(0, '#fde68a'); cg.addColorStop(1, '#b45309');
+            ctx.fillStyle = cg;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy-10); ctx.lineTo(cx+7, cy-2);
+            ctx.lineTo(cx+5, cy+6); ctx.lineTo(cx-5, cy+6);
+            ctx.lineTo(cx-7, cy-2); ctx.closePath(); ctx.fill();
+
+            // Edges between nodes in same hub
+            ctx.lineWidth = 0.3;
+            for (let i = 0; i < miniGraphNodes.length; i++) {
+                for (let j = i+1; j < miniGraphNodes.length; j++) {
+                    if (miniGraphNodes[i].hub !== miniGraphNodes[j].hub) continue;
+                    const dx = miniGraphNodes[j].x - miniGraphNodes[i].x;
+                    const dy = miniGraphNodes[j].y - miniGraphNodes[i].y;
+                    if (dx*dx + dy*dy < 3000) {
+                        ctx.strokeStyle = miniGraphNodes[i].color + '15';
+                        ctx.beginPath();
+                        ctx.moveTo(miniGraphNodes[i].x, miniGraphNodes[i].y);
+                        ctx.lineTo(miniGraphNodes[j].x, miniGraphNodes[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // Core-to-hub edges
+            ['topics','repos','skills'].forEach(hub => {
+                const hubNodes = miniGraphNodes.filter(n => n.hub === hub);
+                hubNodes.slice(0,2).forEach(n => {
+                    ctx.strokeStyle = 'rgba(251,191,36,0.08)';
+                    ctx.lineWidth = 0.5;
+                    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(n.x, n.y); ctx.stroke();
+                });
+            });
+
+            // Animate orbits
+            miniGraphNodes.forEach(n => {
+                n.orbitAngle += n.orbitSpeed * miniRotSpeed;
+                n.x = cx + Math.cos(n.orbitAngle) * n.orbitRadius;
+                n.y = cy + Math.sin(n.orbitAngle) * n.orbitRadius;
+            });
+
+            // Draw nodes
+            miniGraphNodes.forEach(n => {
+                const isHovered = n === hoveredMiniNode;
+                const pulse = 1 + Math.sin(time * 1.2 + n.orbitAngle) * 0.1;
+                const r = (isHovered ? n.r * 2.5 : n.r) * pulse;
+                const glowR = r * 3 * miniGlow;
+                const ng = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, glowR);
+                const ga = Math.min(1, 0.3 * miniGlow);
+                ng.addColorStop(0, n.color + (isHovered ? '60' : Math.round(ga*255).toString(16).padStart(2,'0')));
+                ng.addColorStop(1, n.color + '00');
+                ctx.fillStyle = ng;
+                ctx.beginPath(); ctx.arc(n.x, n.y, glowR, 0, Math.PI*2); ctx.fill();                ctx.globalAlpha = isHovered ? 1 : 0.85;
+                ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+                ctx.fillStyle = n.color; ctx.fill();
+                if (isHovered) {
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+            });
+
+            // Labels
+            getLabels().forEach(l => {
+                ctx.font = 'bold 9px Inter, sans-serif';
+                ctx.fillStyle = l.color;
+                ctx.globalAlpha = 0.6;
+                ctx.textAlign = 'center';
+                ctx.fillText(l.text, l.x, l.y);
+                ctx.globalAlpha = 1;
+            });
+
+            // Hovered node label
+            if (hoveredMiniNode && hoveredMiniNode.title) {
+                const label = hoveredMiniNode.title.substring(0, 30);
+                ctx.font = '500 10px Inter, sans-serif';
+                const tw = ctx.measureText(label).width + 12;
+                const lx = hoveredMiniNode.x - tw/2;
+                const ly = hoveredMiniNode.y - (hoveredMiniNode.r * 2.5) - 20;
+                ctx.fillStyle = 'rgba(13,17,23,0.9)';
+                roundRect(ctx, lx, ly, tw, 16, 4);
+                ctx.fill();
+                ctx.fillStyle = '#e6edf3';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(label, hoveredMiniNode.x, ly + 8);
+            }
+
+            // Core label
+            ctx.font = '500 8px Inter, sans-serif';
+            ctx.fillStyle = 'rgba(251,191,36,0.6)';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText('Knowledge Core', cx, cy + 16);
+
+            ctx.restore();
+            miniAnimFrame = requestAnimationFrame(drawMini);
+        }
+        // ── Tooltip on hover ──
+        const tooltip = document.getElementById('miniGraphTooltip');
+        let hoveredMiniNode = null;
+
+        drawMini();
+        // Update node count
+        const nc = document.getElementById('graphNodeCount');
+        if (nc) nc.textContent = miniGraphNodes.length + ' nodes';
+
+        canvas.addEventListener('mousemove', function(e) {
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+
+            // Find node under cursor (account for zoom)
+            const zx = (mx - w/2) / miniZoom + w/2;
+            const zy = (my - h/2) / miniZoom + h/2;
+
+            let found = null;
+            for (let i = miniGraphNodes.length - 1; i >= 0; i--) {
+                const n = miniGraphNodes[i];
+                const dx = zx - n.x, dy = zy - n.y;
+                const hitR = Math.max(n.r, 4) + 4;
+                if (dx*dx + dy*dy < hitR * hitR) { found = n; break; }
+            }
+
+            if (found && found.title) {
+                hoveredMiniNode = found;
+                canvas.style.cursor = 'pointer';
+                const tags = (found.tags || []).slice(0, 4).map(t => '<span style="display:inline-block;padding:1px 5px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:6px;font-size:9px;color:#a78bfa;margin-right:3px">#' + esc(t) + '</span>').join('');
+                const contentPreview = (found.content || '').substring(0, 80).replace(/\n/g, ' ');
+                tooltip.innerHTML =
+                    '<div style="font-weight:600;margin-bottom:3px">' + esc(found.title.substring(0, 40)) + '</div>' +
+                    '<div style="font-size:10px;color:var(--text-dim);margin-bottom:4px">' + esc(found.item_type) + ' · ' + esc(found.hub) + '</div>' +
+                    (contentPreview ? '<div style="font-size:10px;color:var(--text-dim);margin-bottom:4px;line-height:1.3">' + esc(contentPreview) + '...</div>' : '') +
+                    (tags ? '<div>' + tags + '</div>' : '') +
+                    '<div style="font-size:9px;color:var(--accent);margin-top:4px">Click to explore →</div>';
+                tooltip.style.opacity = '1';
+                // Position tooltip near cursor
+                let tx = e.clientX + 14, ty = e.clientY - 10;
+                if (tx + 250 > window.innerWidth) tx = e.clientX - 254;
+                if (ty + 80 > window.innerHeight) ty = e.clientY - 80;
+                tooltip.style.left = tx + 'px';
+                tooltip.style.top = ty + 'px';
+            } else {
+                hoveredMiniNode = null;
+                canvas.style.cursor = 'default';
+                tooltip.style.opacity = '0';
+            }
+        });
+
+        canvas.addEventListener('mouseleave', function() {
+            hoveredMiniNode = null;
+            tooltip.style.opacity = '0';
+            canvas.style.cursor = 'default';
+        });
+        canvas.addEventListener('click', function() {
+            window.location.href = '/knowledge';
+        });
+    }
+
+    function miniZoomIn() { miniZoom = Math.min(3, miniZoom * 1.3); }
+    function miniZoomOut() { miniZoom = Math.max(0.3, miniZoom * 0.7); }
+    function miniFit() { miniZoom = 1; }
+
+    // ── Mini Graph Physics Controls ──
+    let miniRotSpeed = 1, miniSpread = 1, miniGlow = 1;
+    function toggleMiniPhysics() {
+        const p = document.getElementById('miniPhysicsPanel');
+        p.style.display = p.style.display === 'none' ? 'block' : 'none';
+    }
+    function setRotation(v) { miniRotSpeed = parseFloat(v); document.getElementById('rotVal').textContent = parseFloat(v).toFixed(1) + '×'; }
+    function setSpread(v) { miniSpread = parseFloat(v); document.getElementById('spreadVal').textContent = parseFloat(v).toFixed(1) + '×';
+        miniGraphNodes.forEach(n => { n.orbitRadius = (Math.min(w||400,h||320) * 0.28) * miniSpread + (Math.random()-0.5)*30; });
+    }
+    function setGlow(v) { miniGlow = parseFloat(v); document.getElementById('glowVal').textContent = parseFloat(v).toFixed(1) + '×'; }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // SEARCH
+    // ═══════════════════════════════════════════════════════════════════════
+    // ── Search ──
+    function handleSearch(q) {
+        if (q.trim()) openSearch();
+    }
+
+    function openSearch() {
+        document.getElementById('searchPanel').classList.add('open');
+        setTimeout(() => document.getElementById('searchPanelInput').focus(), 100);
+    }
+    function closeSearch() { document.getElementById('searchPanel').classList.remove('open'); }
+    let searchTimer;
+    async function liveSearch(q) {
+        clearTimeout(searchTimer);
+        if (!q.trim()) { document.getElementById('searchResults').innerHTML = ''; return; }
+        searchTimer = setTimeout(async () => {
+            try {
+                const results = await apiFetch('/search', { method: 'POST', body: { query: q, mode: 'hybrid', limit: 8 } });
+                document.getElementById('searchResults').innerHTML = results.map(r => {
+                    const item = r.item;
+                    return '<div class="search-result" onclick="closeSearch();window.location.href=\'/browser\'">' +
+                        '<div class="search-result-title">'+TYPE_ICONS[item.item_type]+' '+esc(item.title)+'</div>' +
+                        '<div class="search-result-meta">'+item.item_type+' · Score: '+(r.score*100).toFixed(0)+'% · '+(item.content||'').substring(0,60)+'...</div>' +
+                    '</div>';
+                }).join('') || '<div style="padding:16px;text-align:center;color:var(--text-dim);font-size:12px">No results found</div>';
+            } catch(e) { document.getElementById('searchResults').innerHTML = '<div style="padding:16px;color:var(--rose);font-size:12px">Search error</div>'; }
+        }, 300);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // CHAT
+    // ═══════════════════════════════════════════════════════════════════════
+    function toggleChat() { document.getElementById('chatPanel').classList.toggle('open'); }
+    async function sendChat() {
+        const input = document.getElementById('chatInput'), msg = input.value.trim();
+        if (!msg) return; input.value = '';
+        const ml = document.getElementById('chatMessages');
+        ml.innerHTML += '<div class="chat-msg user">' + esc(msg) + '</div>';
+        const tid = 't-' + Date.now();
+        ml.innerHTML += '<div class="chat-msg assistant" id="' + tid + '">Thinking...</div>';
+        ml.scrollTop = ml.scrollHeight;
+        try {
+            const r = await apiFetch('/chat', { method: 'POST', body: { message: msg, history: chatHistory } });
+            document.getElementById(tid).innerHTML = esc(r.reply);
+            chatHistory.push({ role: 'user', parts: [msg] }); chatHistory.push({ role: 'model', parts: [r.reply] });
+            if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
+            localStorage.setItem('brain_chat_history', JSON.stringify(chatHistory));
+        } catch(e) { document.getElementById(tid).innerHTML = '<span style="color:#f87171">⚠️ '+esc(e.message)+'</span>'; }
+        ml.scrollTop = ml.scrollHeight;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // WEBSOCKET
+    // ═══════════════════════════════════════════════════════════════════════
+    var socket = null;
+    try {
+        socket = io();
+        socket.on('connect', () => {
+            socket.emit('identify', { name: localStorage.getItem('brain_user_name') || 'User' });
+            socket.emit('navigate', { page: '/' });
+        });
+        socket.on('users_list', (data) => {
+            var oc = document.getElementById('onlineCount');
+            if (oc) oc.textContent = data.users.length + ' online';
+        });
+        socket.on('item_created', (item) => { allItems.push(item); loadDashboard(); showToast('New: ' + item.title); });
+        socket.on('item_updated', (item) => { const idx = allItems.findIndex(i => i.id === item.id); if (idx >= 0) allItems[idx] = item; loadDashboard(); });
+        socket.on('item_deleted', (data) => { allItems = allItems.filter(i => i.id !== data.id); loadDashboard(); });
+    } catch(e) { console.warn('WebSocket unavailable:', e); }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // UTILS
+    // ═══════════════════════════════════════════════════════════════════════
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x+r,y); c.lineTo(x+w-r,y); c.quadraticCurveTo(x+w,y,x+w,y+r); c.lineTo(x+w,y+h-r); c.quadraticCurveTo(x+w,y+h,x+w-r,y+h); c.lineTo(x+r,y+h); c.quadraticCurveTo(x,y+h,x,y+h-r); c.lineTo(x,y+r); c.quadraticCurveTo(x,y,x+r,y); c.closePath(); }
+    function startClock() {
+        const update = () => {
+            const now = new Date();
+            const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+            document.getElementById('topTime').textContent = now.getDate().toString().padStart(2,'0')+' '+months[now.getMonth()]+' '+now.getFullYear()+' | '+now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0')+' PST';
+        };
+        update(); setInterval(update, 30000);
+    }
+    function updateTimeGreeting() {
+        const h = new Date().getHours();
+        const g = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+        document.getElementById('welcomeMsg').textContent = g + ' — here\'s your brain overview';
+    }
+    function timeAgo(dateStr) {
+        const diff = Date.now() - new Date(dateStr).getTime();
+        const mins = Math.floor(diff / 60000);
+        if (mins < 60) return mins + 'm ago';
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return hrs + 'h ago';
+        const days = Math.floor(hrs / 24);
+        return days + 'd ago';
+    }
+    let toastTimer;
+    function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2500); }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { closeSearch(); if (document.getElementById('chatPanel').classList.contains('open')) toggleChat(); }
+        if (e.key === '/' && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName) && !document.getElementById('searchPanel').classList.contains('open')) { e.preventDefault(); openSearch(); }
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); openSearch(); }
+    });
+
+    // Init
+    // ═══════════════════════════════════════════════════════════════════════
+    // DRAG & DROP + CUSTOMIZE
+    // ═══════════════════════════════════════════════════════════════════════
+
+    const CARD_IDS = ['quicknav', 'graph', 'recent', 'activity', 'distribution', 'tags', 'health', 'memory'];
+    let isCustomizing = false;
+    let dragSrcCard = null;
+
+    function getLayout() {
+        try { return JSON.parse(localStorage.getItem('brain_dashboard_layout')); } catch(e) { return null; }
+    }
+
+    function saveLayout() {
+        const layout = { order: [], hidden: [] };
+        document.querySelectorAll('[data-card]').forEach(card => {
+            layout.order.push(card.dataset.card);
+            if (card.style.display === 'none') layout.hidden.push(card.dataset.card);
+        });
+        localStorage.setItem('brain_dashboard_layout', JSON.stringify(layout));
+    }
+
+    function applyLayout() {
+        const layout = getLayout();
+        if (!layout) return;
+        const grid = document.querySelector('.dashboard');
+        if (!grid) return;
+
+        // Reorder cards by moving DOM elements
+        if (layout.order && layout.order.length) {
+            layout.order.forEach(cardId => {
+                const card = document.querySelector('[data-card="' + cardId + '"]');
+                if (card) card.parentElement.appendChild(card);
+            });
+        }
+
+        // Apply visibility
+        if (layout.hidden && layout.hidden.length) {
+            layout.hidden.forEach(cardId => {
+                const card = document.querySelector('[data-card="' + cardId + '"]');
+                if (card) card.style.display = 'none';
+            });
+        }
+    }
+
+    function toggleCustomize() {
+        isCustomizing = !isCustomizing;
+        const dashboard = document.querySelector('.dashboard');
+        const bar = document.getElementById('customizeBar');
+        const btn = document.getElementById('customizeBtn');
+
+        if (isCustomizing) {
+            dashboard.classList.add('customizing');
+            bar.classList.add('show');
+            btn.textContent = '✓';
+            btn.style.background = 'var(--green)';
+            enableDrag();
+            addVisibilityToggles();
+        } else {
+            dashboard.classList.remove('customizing');
+            bar.classList.remove('show');
+            btn.textContent = '✏️';
+            btn.style.background = 'var(--accent)';
+            disableDrag();
+            removeVisibilityToggles();
+            saveLayout();
+        }
+    }
+
+    function resetLayout() {
+        localStorage.removeItem('brain_dashboard_layout');
+        document.querySelectorAll('[data-card]').forEach(card => {
+            card.style.display = '';
+            card.style.opacity = '';
+            card.style.transform = '';
+        });
+        location.reload();
+    }
+
+    function enableDrag() {
+        document.querySelectorAll('[data-card]').forEach(card => {
+            card.setAttribute('draggable', 'true');
+
+            card.addEventListener('dragstart', handleDragStart);
+            card.addEventListener('dragover', handleDragOver);
+            card.addEventListener('dragenter', handleDragEnter);
+            card.addEventListener('dragleave', handleDragLeave);
+            card.addEventListener('drop', handleDrop);
+            card.addEventListener('dragend', handleDragEnd);
+        });
+    }
+
+    function disableDrag() {
+        document.querySelectorAll('[data-card]').forEach(card => {
+            card.setAttribute('draggable', 'false');
+            card.classList.remove('dragging', 'drag-over');
+            card.removeEventListener('dragstart', handleDragStart);
+            card.removeEventListener('dragover', handleDragOver);
+            card.removeEventListener('dragenter', handleDragEnter);
+            card.removeEventListener('dragleave', handleDragLeave);
+            card.removeEventListener('drop', handleDrop);
+            card.removeEventListener('dragend', handleDragEnd);
+        });
+    }
+
+    function handleDragStart(e) {
+        dragSrcCard = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', this.dataset.card);
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    }
+
+    function handleDragEnter(e) {
+        e.preventDefault();
+        if (this !== dragSrcCard) this.classList.add('drag-over');
+    }
+
+    function handleDragLeave(e) {
+        this.classList.remove('drag-over');
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.classList.remove('drag-over');
+
+        if (dragSrcCard !== this) {
+            // Swap the two cards in the DOM
+            const parent = this.parentNode;
+            const srcNext = dragSrcCard.nextSibling;
+            if (srcNext === this) {
+                parent.insertBefore(this, dragSrcCard);
+            } else {
+                parent.insertBefore(dragSrcCard, this);
+                parent.insertBefore(this, srcNext);
+            }
+            saveLayout();
+        }
+    }
+
+    function handleDragEnd(e) {
+        this.classList.remove('dragging');
+        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    }
+
+    function addVisibilityToggles() {
+        document.querySelectorAll('[data-card] .card-header').forEach(header => {
+            if (header.querySelector('.card-visibility')) return;
+            const card = header.closest('[data-card]');
+            const isHidden = card.style.display === 'none';
+
+            const toggle = document.createElement('button');
+            toggle.className = 'card-visibility' + (isHidden ? ' hidden' : '');
+            toggle.innerHTML = isHidden ? '👁‍🗨' : '👁';
+            toggle.title = isHidden ? 'Show card' : 'Hide card';
+            toggle.onclick = (e) => {
+                e.stopPropagation();
+                const currentlyHidden = card.style.display === 'none';
+                card.style.display = currentlyHidden ? '' : 'none';
+                toggle.innerHTML = currentlyHidden ? '👁' : '👁‍🗨';
+                toggle.title = currentlyHidden ? 'Hide card' : 'Show card';
+                toggle.classList.toggle('hidden');
+                saveLayout();
+            };
+
+            // Insert drag handle + visibility toggle before card title
+            const handle = document.createElement('span');
+            handle.className = 'card-drag-handle';
+            handle.innerHTML = '⠿';
+            handle.title = 'Drag to reorder';
+
+            header.insertBefore(toggle, header.firstChild);
+            header.insertBefore(handle, header.firstChild);
+        });
+    }
+
+    function removeVisibilityToggles() {
+        document.querySelectorAll('.card-drag-handle, .card-visibility').forEach(el => el.remove());
+    }
+
+    checkAuthAndLoad();
+    // Apply saved layout after DOM is ready
+    setTimeout(applyLayout, 100);
+    // Redraw chart on resize
+    window.addEventListener('resize', () => { clearTimeout(window._memResize); window._memResize = setTimeout(renderMemoryChart, 200); });
+    </script>
+</body>
+</html>

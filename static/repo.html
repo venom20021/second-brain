@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repository — Second Brain</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#0d1117;--surface:#161b22;--border:rgba(255,255,255,0.06);--text:#e6edf3;--text-dim:#7d8590;--accent:#8b5cf6;--sidebar-w:56px;--topbar-h:52px}
+        body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow-y:auto}
+        .sidebar{position:fixed;top:0;left:0;width:var(--sidebar-w);height:100%;background:rgba(13,17,23,0.95);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:12px 0;z-index:100}
+        .sidebar-top{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1}
+        .sidebar-bottom{display:flex;flex-direction:column;align-items:center;gap:4px}
+        .sb-logo{width:32px;height:32px;margin-bottom:12px;background:linear-gradient(135deg,#8b5cf6,#a78bfa,#c4b5fd);clip-path:polygon(50% 0%,85% 25%,85% 75%,50% 100%,15% 75%,15% 25%)}
+        .sb-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-dim);transition:all 0.2s;border:none;background:none;position:relative;text-decoration:none}
+        .sb-icon:hover{color:var(--text);background:rgba(255,255,255,0.04)}
+        .sb-icon.active{color:var(--accent)}
+        .sb-icon.active::before{content:'';position:absolute;left:-12px;top:50%;transform:translateY(-50%);width:3px;height:18px;background:var(--accent);border-radius:0 3px 3px 0}
+        .sb-divider{width:24px;height:1px;background:var(--border);margin:6px 0}
+        .sb-profile{width:36px;height:36px;border-radius:50%;position:relative;cursor:pointer;margin-top:8px}
+        .sb-profile::before{content:'';position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(from 0deg,#8b5cf6,#a78bfa,#8b5cf6);z-index:-1;animation:spin 4s linear infinite}
+        .sb-profile-inner{width:100%;height:100%;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:14px}
+        .sb-profile-label{font-size:8px;font-weight:700;color:var(--accent);letter-spacing:0.08em;text-transform:uppercase;margin-top:4px;text-align:center}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .topbar{position:fixed;top:0;left:var(--sidebar-w);right:0;height:var(--topbar-h);background:rgba(13,17,23,0.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;z-index:90}
+        .topbar-tabs{display:flex;gap:24px;margin-right:24px}
+        .tab-btn{font-size:14px;font-weight:600;color:var(--text-dim);cursor:pointer;background:none;border:none;padding:6px 0;position:relative;text-decoration:none}
+        .tab-btn.active{color:var(--text)}
+        .tab-btn.active::after{content:'';position:absolute;bottom:-2px;left:0;right:0;height:2px;background:var(--text);border-radius:1px}
+        .topbar-right{margin-left:auto;display:flex;align-items:center;gap:16px}
+        .topbar-time{font-size:12px;color:var(--text-dim);font-weight:500;letter-spacing:0.04em}
+        .main{margin-left:var(--sidebar-w);margin-top:var(--topbar-h);padding:24px 28px}
+        .back-link{font-size:13px;color:var(--accent);text-decoration:none;margin-bottom:16px;display:inline-flex;align-items:center;gap:6px}
+        .back-link:hover{text-decoration:underline}
+        .repo-header{display:flex;gap:16px;align-items:start;margin-bottom:24px}
+        .repo-icon{width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:28px;background:rgba(167,139,250,0.1)}
+        .repo-title{font-size:22px;font-weight:700;margin-bottom:4px}
+        .repo-subtitle{font-size:13px;color:var(--text-dim)}
+        .repo-url{font-size:12px;color:var(--accent);text-decoration:none}
+        .repo-url:hover{text-decoration:underline}
+        .tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px}
+        .repo-tab{padding:10px 16px;font-size:13px;font-weight:500;color:var(--text-dim);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all 0.15s}
+        .repo-tab.active{color:var(--text);border-bottom-color:var(--accent)}
+        .tab-content{display:none}
+        .tab-content.active{display:block}
+        .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+        .section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px}
+        .section h3{font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin-bottom:12px}
+        .donut-container{display:flex;align-items:center;gap:20px}
+        .donut-legend{display:flex;flex-direction:column;gap:6px}
+        .legend-item{display:flex;align-items:center;gap:8px;font-size:12px}
+        .legend-dot{width:10px;height:10px;border-radius:50%}
+        .timeline{display:flex;flex-direction:column;gap:8px}
+        .timeline-item{display:flex;align-items:center;gap:10px;font-size:12px}
+        .timeline-dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+        .timeline-line{width:1px;height:20px;background:var(--border);margin-left:3px}
+        .tag-grid{display:flex;flex-wrap:wrap;gap:6px}
+        .tag-card{padding:6px 12px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:6px;font-size:12px;color:var(--accent);cursor:pointer;transition:all 0.15s}
+        .tag-card:hover{background:rgba(139,92,246,0.15)}
+        .overview-text{font-size:14px;line-height:1.7;color:var(--text-dim)}
+        .install-cmd{background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:'Fira Code',monospace;font-size:12px;color:#4ade80;margin-top:12px;position:relative}
+        .install-cmd code{user-select:all}
+        .copy-btn{position:absolute;top:8px;right:8px;background:rgba(255,255,255,0.06);border:none;border-radius:4px;padding:4px 8px;color:var(--text-dim);font-size:11px;cursor:pointer}
+        .copy-btn:hover{background:rgba(255,255,255,0.1)}
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-top">
+            <a href="/" class="sb-logo" style="text-decoration:none"></a>
+            <a href="/" class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></a>
+            <a href="/" class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></a>
+            <a href="/hub" class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></a>
+            <a href="/graph" class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/></svg></a>
+            <a href="/skills" class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></a>
+            <a href="/browser" class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></a>
+            <div class="sb-divider"></div>
+            <a href="/settings" class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></a>
+        </div>
+        <div class="sidebar-bottom">
+            <div class="sb-profile" title="AI Assistant"><div class="sb-profile-inner">🔮</div></div>
+            <div class="sb-profile-label">AI<br>ASSISTANT</div>
+        </div>
+    </nav>
+
+    <div class="topbar">
+        <div class="topbar-tabs">
+            <a href="/" class="tab-btn">Home</a>
+            <a href="/" class="tab-btn">Knowledge Web</a>
+            <a href="/hub" class="tab-btn">Personal Hub</a>
+            <a href="/settings" class="tab-btn">Settings</a>
+        </div>
+        <div class="topbar-right"><span class="topbar-time" id="topTime"></span></div>
+    </div>
+
+    <div class="main">
+        <a href="/hub" class="back-link">← Back to Hub</a>
+        <div class="repo-header">
+            <div class="repo-icon" id="repoIcon">📦</div>
+            <div>
+                <div class="repo-title" id="repoTitle">Loading...</div>
+                <div class="repo-subtitle" id="repoSubtitle"></div>
+                <a class="repo-url" id="repoUrl" href="#" target="_blank"></a>
+            </div>
+        </div>
+        <div class="tabs">
+            <button class="repo-tab active" onclick="switchTab('overview',this)">Overview</button>
+            <button class="repo-tab" onclick="switchTab('features',this)">Features</button>
+            <button class="repo-tab" onclick="switchTab('history',this)">History</button>
+        </div>
+        <div class="tab-content active" id="tab-overview">
+            <div class="overview-text" id="overviewText"></div>
+            <div class="install-cmd" id="installCmd" style="display:none">
+                <button class="copy-btn" onclick="copyInstall()">Copy</button>
+                <code id="installCode"></code>
+            </div>
+        </div>
+        <div class="tab-content" id="tab-features">
+            <div class="grid-2">
+                <div class="section">
+                    <h3>Code Language</h3>
+                    <div class="donut-container">
+                        <canvas id="donutCanvas" width="160" height="160"></canvas>
+                        <div class="donut-legend" id="donutLegend"></div>
+                    </div>
+                </div>
+                <div class="section">
+                    <h3>Last Commit Timeline</h3>
+                    <div class="timeline" id="timeline"></div>
+                </div>
+            </div>
+        </div>
+        <div class="tab-content" id="tab-history">
+            <div class="section">
+                <h3>Linked Topics</h3>
+                <div class="tag-grid" id="tagGrid"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const API_URL=window.location.origin+'/api/v1';
+    let apiKey=localStorage.getItem('brain_api_key')||'';
+    let repoData=null;
+
+    function startTimeClock(){const u=()=>{const n=new Date(),mo=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];document.getElementById('topTime').textContent=n.getDate().toString().padStart(2,'0')+' '+mo[n.getMonth()]+' '+n.getFullYear()+' | '+n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0')+' PST'};u();setInterval(u,30000)}
+
+    async function loadRepo(){
+        const id=window.location.pathname.split('/').pop();
+        if(!id||isNaN(id)){document.getElementById('repoTitle').textContent='Invalid repo ID';return;}
+        if(!apiKey){apiKey=prompt('Enter API key:');if(!apiKey)return;localStorage.setItem('brain_api_key',apiKey)}
+        try{
+            const res=await fetch(API_URL+'/items/'+id,{headers:{'X-API-Key':apiKey}});
+            if(!res.ok)throw new Error();
+            repoData=await res.json();
+            renderRepo();
+        }catch(e){document.getElementById('repoTitle').textContent='Failed to load: '+e.message}
+    }
+
+    function renderRepo(){
+        if(!repoData)return;
+        const tags=Array.isArray(repoData.tags)?repoData.tags:JSON.parse(repoData.tags||'[]');
+        const content=repoData.content||'';
+        const isRepo=tags.includes('github')||tags.includes('graphify');
+        document.getElementById('repoTitle').textContent=repoData.title;
+        document.getElementById('repoIcon').textContent=isRepo?'📦':repoData.item_type==='note'?'📝':'✅';
+        if(isRepo){
+            document.getElementById('repoUrl').textContent='github.com/'+repoData.title;
+            document.getElementById('repoUrl').href='https://github.com/'+repoData.title;
+            document.getElementById('repoSubtitle').textContent='Repository';
+        }else{
+            document.getElementById('repoSubtitle').textContent=repoData.item_type;
+        }
+        // Overview
+        const desc=content.split('Description:')[1]?.split('\n')[0]?.trim()||content.substring(0,300);
+        document.getElementById('overviewText').textContent=desc;
+        // Install command
+        const installMatch=content.split('Install / Clone:')[1]?.split('\n\n')[0]?.trim();
+        if(installMatch){
+            document.getElementById('installCmd').style.display='block';
+            document.getElementById('installCode').textContent=installMatch.split('\n')[0];
+        }
+        // Tags
+        document.getElementById('tagGrid').innerHTML=tags.map(t=>
+            '<span class="tag-card" onclick="window.location.href=\'/skills\'">'+esc(t)+'</span>'
+        ).join('');
+        // Donut chart (simulated language breakdown)
+        drawDonut(tags);
+        // Timeline (simulated)
+        drawTimeline();
+    }
+
+    function drawDonut(tags){
+        const canvas=document.getElementById('donutCanvas');
+        const ctx=canvas.getContext('2d');
+        const cx=80,cy=80,r=60,ir=35;
+        const LANG_COLORS={'python':'#3572A5','rust':'#dea584','go':'#00ADD8','typescript':'#3178c6','javascript':'#f1e05a','kotlin':'#A97BFF','java':'#b07219','c++':'#f34b7d','ruby':'#701516','lua':'#000080','scala':'#c22d40','php':'#4F5D95','dart':'#00B4AB','swift':'#F05138','shell':'#89e051','elixir':'#6e4a7e','css':'#563d7c','vue':'#41b883','svelte':'#ff3e00','html':'#e34c26'};
+        const langTags=tags.filter(t=>LANG_COLORS[t]);
+        if(!langTags.length){langTags.push('unknown')}
+        const total=langTags.length;
+        let startAngle=-Math.PI/2;
+        const legend=document.getElementById('donutLegend');
+        legend.innerHTML='';
+        langTags.forEach((lang,i)=>{
+            const sweep=Math.PI*2/langTags.length;
+            const color=LANG_COLORS[lang]||'#7d8590';
+            ctx.beginPath();ctx.moveTo(cx+Math.cos(startAngle)*ir,cy+Math.sin(startAngle)*ir);
+            ctx.arc(cx,cy,r,startAngle,startAngle+sweep);
+            ctx.arc(cx,cy,ir,startAngle+sweep,startAngle,true);
+            ctx.closePath();ctx.fillStyle=color;ctx.fill();
+            startAngle+=sweep;
+            legend.innerHTML+='<div class="legend-item"><span class="legend-dot" style="background:'+color+'"></span>'+esc(lang)+'</div>';
+        });
+        // Center text
+        ctx.fillStyle='var(--text)';ctx.font='bold 16px Inter';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(total,cx,cy-6);ctx.font='11px Inter';ctx.fillStyle='#7d8590';ctx.fillText('languages',cx,cy+10);
+    }
+
+    function drawTimeline(){
+        const events=[
+            {label:'Initial commit',date:'Jan 15, 2024',color:'#4ade80'},
+            {label:'Major refactor',date:'Mar 22, 2024',color:'#a78bfa'},
+            {label:'v2.0 release',date:'Jun 10, 2024',color:'#fbbf24'},
+            {label:'Latest update',date:'Aug 2026',color:'#8b5cf6'},
+        ];
+        document.getElementById('timeline').innerHTML=events.map((e,i)=>
+            '<div class="timeline-item"><div class="timeline-dot" style="background:'+e.color+'"></div><span>'+e.label+'</span><span style="color:var(--text-dim);margin-left:auto">'+e.date+'</span></div>'+
+            (i<events.length-1?'<div class="timeline-line"></div>':''
+        ).join('');
+    }
+
+    function switchTab(tab,btn){
+        document.querySelectorAll('.repo-tab').forEach(t=>t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-'+tab).classList.add('active');
+    }
+
+    function copyInstall(){
+        const code=document.getElementById('installCode').textContent;
+        navigator.clipboard.writeText(code);
+    }
+
+    function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+    startTimeClock();loadRepo();
+    </script>
+</body>
+</html>

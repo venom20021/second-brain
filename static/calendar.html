@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar — Second Brain</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg: #0d1117; --surface: #161b22; --surface-2: #1c2333; --border: rgba(255,255,255,0.06); --text: #e6edf3; --text-dim: #7d8590; --accent: #8b5cf6; --sidebar-w: 56px; --topbar-h: 52px; --green: #4ade80; --cyan: #22d3ee; --amber: #fbbf24; --rose: #f87171; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+        :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+        /* Sidebar */
+        .sidebar { position: fixed; top: 0; left: 0; width: var(--sidebar-w); height: 100%; background: rgba(13,17,23,0.95); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding: 12px 0; z-index: 100; }
+        .sidebar-top { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+        .sidebar-bottom { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .sb-logo { width: 32px; height: 32px; margin-bottom: 12px; cursor: pointer; background: linear-gradient(135deg, #8b5cf6, #a78bfa, #c4b5fd); clip-path: polygon(50% 0%, 85% 25%, 85% 75%, 50% 100%, 15% 75%, 15% 25%); transition: filter 0.3s; }
+        .sb-logo:hover { filter: brightness(1.3) drop-shadow(0 0 10px rgba(139,92,246,0.6)); }
+        .sb-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-dim); transition: all 0.2s; border: none; background: none; position: relative; text-decoration: none; }
+        .sb-icon:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+        .sb-icon.active { color: var(--accent); }
+        .sb-icon.active::before { content: ''; position: absolute; left: -12px; top: 50%; transform: translateY(-50%); width: 3px; height: 18px; background: var(--accent); border-radius: 0 3px 3px 0; }
+        .sb-divider { width: 24px; height: 1px; background: var(--border); margin: 6px 0; }
+        .sb-profile { width: 36px; height: 36px; border-radius: 50%; position: relative; cursor: pointer; margin-top: 8px; }
+        .sb-profile::before { content: ''; position: absolute; inset: -3px; border-radius: 50%; background: conic-gradient(from 0deg, #8b5cf6, #a78bfa, #8b5cf6); z-index: -1; animation: spin 4s linear infinite; }
+        .sb-profile-inner { width: 100%; height: 100%; border-radius: 50%; background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .sb-profile-label { font-size: 8px; font-weight: 700; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 4px; text-align: center; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Top Bar */
+        .topbar { position: fixed; top: 0; left: var(--sidebar-w); right: 0; height: var(--topbar-h); background: rgba(13,17,23,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; z-index: 90; }
+        .topbar-tabs { display: flex; gap: 24px; margin-right: 24px; }
+        .tab-btn { font-size: 14px; font-weight: 600; color: var(--text-dim); cursor: pointer; background: none; border: none; padding: 6px 0; position: relative; transition: color 0.2s; text-decoration: none; }
+        .tab-btn.active { color: var(--text); }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px; background: var(--text); border-radius: 1px; }
+        
+        .search-box { flex: 1; max-width: 320px; position: relative; }
+        .search-box input { width: 100%; padding: 7px 12px 7px 32px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; outline: none; }
+        .search-box input:focus { border-color: rgba(139,92,246,0.4); }
+        .search-box input::placeholder { color: var(--text-dim); }
+        .search-box svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-dim); }
+        .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+        .topbar-time { font-size: 12px; color: var(--text-dim); font-weight: 500; letter-spacing: 0.04em; white-space: nowrap; }
+
+        /* Main */
+        .main { margin-left: var(--sidebar-w); margin-top: var(--topbar-h); height: calc(100vh - var(--topbar-h)); display: flex; flex-direction: column; }
+
+        /* Calendar Header */
+        .cal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--border); }
+        .cal-nav { display: flex; align-items: center; gap: 12px; }
+        .cal-nav-btn { width: 32px; height: 32px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.15s; }
+        .cal-nav-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+        .cal-month { font-size: 20px; font-weight: 700; min-width: 200px; text-align: center; }
+        .cal-today { padding: 6px 14px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .cal-today:hover { background: #7c3aed; }
+        .cal-legend { display: flex; gap: 12px; align-items: center; }
+        .cal-legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-dim); }
+        .cal-legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+        /* Calendar Grid */
+        .cal-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 0 24px 16px; }
+        .cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+        .cal-weekday { text-align: center; font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 0; }
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; flex: 1; }
+        .cal-day { background: var(--surface); border: 1px solid transparent; border-radius: 8px; padding: 6px 8px; min-height: 80px; cursor: pointer; transition: all 0.15s; position: relative; overflow: hidden; }
+        .cal-day:hover { border-color: rgba(139,92,246,0.3); background: var(--surface-2); }
+        .cal-day.today { border-color: var(--accent); background: rgba(139,92,246,0.05); }
+        .cal-day.other-month { opacity: 0.3; }
+        .cal-day.selected { border-color: var(--accent); background: rgba(139,92,246,0.1); box-shadow: 0 0 12px rgba(139,92,246,0.15); }
+        .cal-day-num { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+        .cal-day.today .cal-day-num { color: var(--accent); }
+        .cal-dots { display: flex; flex-wrap: wrap; gap: 2px; }
+        .cal-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+        .cal-day-items { font-size: 9px; color: var(--text-dim); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cal-day-count { position: absolute; top: 6px; right: 8px; font-size: 9px; color: var(--text-dim); background: rgba(255,255,255,0.04); padding: 1px 5px; border-radius: 4px; }
+
+        /* Day Detail Panel */
+        .day-panel { position: fixed; top: var(--topbar-h); right: -400px; width: 400px; bottom: 0; background: rgba(13,17,23,0.95); backdrop-filter: blur(16px); border-left: 1px solid var(--border); z-index: 90; display: flex; flex-direction: column; transition: right 0.3s; }
+        .day-panel.open { right: 0; }
+        .day-panel-header { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .day-panel-title { font-size: 15px; font-weight: 600; }
+        .day-panel-sub { font-size: 11px; color: var(--text-dim); }
+        .day-panel-close { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 18px; }
+        .day-panel-body { flex: 1; overflow-y: auto; padding: 12px 16px; }
+        .day-item { padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.15s; }
+        .day-item:hover { border-color: rgba(139,92,246,0.3); background: rgba(255,255,255,0.04); }
+        .day-item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+        .day-item-type { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
+        .day-item-title { font-size: 13px; font-weight: 500; }
+        .day-item-content { font-size: 11px; color: var(--text-dim); line-height: 1.5; max-height: 40px; overflow: hidden; }
+        .day-item-tags { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+        .day-item-tag { font-size: 9px; padding: 1px 6px; background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.15); border-radius: 8px; color: var(--accent); }
+        .day-empty { text-align: center; padding: 40px 20px; color: var(--text-dim); }
+        .day-empty-icon { font-size: 32px; margin-bottom: 8px; }
+        .day-empty-text { font-size: 13px; }
+
+        /* Stats */
+        .cal-stats { display: flex; gap: 16px; padding: 12px 24px; border-top: 1px solid var(--border); background: var(--surface); }
+        .cal-stat { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); }
+        .cal-stat-val { font-weight: 600; color: var(--text); }
+
+        /* Auth */
+        .auth-overlay { position: fixed; inset: 0; background: rgba(13,17,23,0.95); backdrop-filter: blur(20px); z-index: 500; display: flex; align-items: center; justify-content: center; }
+        .auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 32px; width: 360px; text-align: center; }
+        .auth-card h2 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+        .auth-card p { font-size: 12px; color: var(--text-dim); margin-bottom: 18px; }
+        .auth-card input { width: 100%; padding: 9px 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; outline: none; margin-bottom: 12px; font-family: monospace; }
+        .auth-card input:focus { border-color: var(--accent); }
+        .auth-card button { width: 100%; padding: 9px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+        #authError { color: #f87171; font-size: 11px; margin-top: 8px; display: none; }
+
+        .toast { position: fixed; top: 64px; left: 50%; transform: translateX(-50%) translateY(-16px); padding: 7px 14px; background: rgba(22,27,34,0.95); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; z-index: 300; opacity: 0; transition: all 0.2s; pointer-events: none; }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+    
+        .chat-panel { position: fixed; top: var(--topbar-h); right: -400px; width: 400px; bottom: 0; background: rgba(13,17,23,0.95); backdrop-filter: blur(16px); border-left: 1px solid var(--border); z-index: 90; display: flex; flex-direction: column; transition: right 0.3s; }
+        .chat-panel.open { right: 0; }
+        .chat-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .chat-header h3 { font-size: 13px; font-weight: 600; }
+        .chat-close { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+        .chat-msg { font-size: 13px; line-height: 1.5; padding: 8px 12px; border-radius: 8px; max-width: 90%; }
+        .chat-msg.user { background: rgba(139,92,246,0.15); align-self: flex-end; border: 1px solid rgba(139,92,246,0.2); }
+        .chat-msg.assistant { background: rgba(255,255,255,0.03); align-self: flex-start; border: 1px solid var(--border); }
+        .chat-input-area { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+        .chat-input-area input { flex: 1; padding: 8px 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; outline: none; }
+        .chat-input-area button { padding: 8px 14px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="auth-overlay" id="authOverlay" style="display:none">
+        <div class="auth-card">
+            <div style="font-size:28px;margin-bottom:10px;">🧠</div>
+            <h2>Connect to your Second Brain</h2>
+            <p>Enter your API key to access the Calendar</p>
+            <input type="text" id="authKeyInput" placeholder="sb_..." autofocus>
+            <button id="authConnectBtn">Connect</button>
+            <div id="authError"></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="sidebar-top">
+            <a href="/" class="sb-logo" style="text-decoration:none" title="Second Brain"></a>
+            <a href="/" class="sb-icon" aria-label="Dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></a>
+            <a href="/hub" class="sb-icon" aria-label="Hub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></a>
+            <a href="/knowledge" class="sb-icon" aria-label="Knowledge Web"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><line x1="8.5" y1="6" x2="15.5" y2="6"/><line x1="6" y1="8.5" x2="6" y2="15.5"/></svg></a>
+            <a href="/graph" class="sb-icon" aria-label="Graph View"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><line x1="8.5" y1="6" x2="15.5" y2="6"/><line x1="6" y1="8.5" x2="6" y2="15.5"/><line x1="18" y1="8.5" x2="18" y2="15.5"/><line x1="8.5" y1="18" x2="15.5" y2="18"/></svg></a>
+            <a href="/calendar" class="sb-icon active" aria-label="Calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><rect x="7" y="14" width="3" height="3" rx="0.5"/></svg></a>
+            <a href="/skills" class="sb-icon" aria-label="Skills"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></a>
+            <a href="/browser" class="sb-icon" aria-label="Browser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></a>
+            <a href="/colleagues" class="sb-icon" aria-label="Colleagues"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></a>
+            <div class="sb-divider"></div>
+            <a href="/settings" class="sb-icon" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></a>
+        </div>
+        <div class="sidebar-bottom">
+            <div class="sb-profile" title="AI Assistant"><div class="sb-profile-inner">🔮</div></div>
+            <div class="sb-profile-label">AI<br>ASSISTANT</div>
+        </div>
+    </nav>
+
+    <!-- Top Bar -->
+    <div class="topbar">
+        <div class="topbar-tabs">
+            <a href="/" class="tab-btn">Home</a>
+            <a href="/knowledge" class="tab-btn">Knowledge Web</a>
+            <a href="/graph" class="tab-btn">Graph View</a>
+            <a href="/hub" class="tab-btn">Personal Hub</a>
+            <a href="/settings" class="tab-btn">Settings</a>
+        </div>
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="searchInput" placeholder="Search knowledge web..." aria-label="Search" oninput="handleSearch(this.value)">
+        </div>
+        <div class="topbar-right"><span class="topbar-time" id="topTime"></span>
+                        <button onclick="toggleChat()" title="AI Chat" style="background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-dim);cursor:pointer;font-size:15px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;transition:all 0.15s">💬</button></div>
+    </div>
+
+    <!-- Main -->
+    <div class="main">
+        <div class="cal-header">
+            <div class="cal-nav">
+                <button class="cal-nav-btn" onclick="prevMonth()" aria-label="Previous month">‹</button>
+                <div class="cal-month" id="calMonth"></div>
+                <button class="cal-nav-btn" onclick="nextMonth()" aria-label="Next month">›</button>
+                <button class="cal-today" onclick="goToday()">Today</button>
+            </div>
+            <div class="cal-legend">
+                <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--green)"></div>Notes</div>
+                <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--cyan)"></div>Code</div>
+                <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--amber)"></div>Bookmarks</div>
+                <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--rose)"></div>Tasks</div>
+            </div>
+        </div>
+
+        <div class="cal-body">
+            <div class="cal-weekdays">
+                <div class="cal-weekday">Sun</div>
+                <div class="cal-weekday">Mon</div>
+                <div class="cal-weekday">Tue</div>
+                <div class="cal-weekday">Wed</div>
+                <div class="cal-weekday">Thu</div>
+                <div class="cal-weekday">Fri</div>
+                <div class="cal-weekday">Sat</div>
+            </div>
+            <div class="cal-grid" id="calGrid"></div>
+        </div>
+
+        <div class="cal-stats" id="calStats"></div>
+    </div>
+
+    <!-- Day Detail Panel -->
+    <div class="day-panel" id="dayPanel">
+        <div class="day-panel-header">
+            <div>
+                <div class="day-panel-title" id="dayPanelTitle">—</div>
+                <div class="day-panel-sub" id="dayPanelSub">—</div>
+            </div>
+            <button class="day-panel-close" onclick="closeDayPanel()">&times;</button>
+        </div>
+        <div class="day-panel-body" id="dayPanelBody"></div>
+    </div>
+
+    
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-header">
+            <h3>💬 AI Chat</h3>
+            <button class="chat-close" onclick="toggleChat()">&times;</button>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div style="text-align:center;color:var(--text-dim);padding:20px;font-size:12px;">
+                Ask me anything about your knowledge base.<br>I search your memories and use Gemini to answer.
+            </div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="chatInput" placeholder="Ask about your memories..." onkeydown="if(event.key==='Enter')sendChat()">
+            <button onclick="sendChat()">Send</button>
+        </div>
+    </div>
+
+    <script src="/vendor/socket.io.min.js?v=1787384686">
+    var chatHistory = JSON.parse(localStorage.getItem('brain_chat_history') || '[]'); if (!Array.isArray(chatHistory)) chatHistory = [];
+    function toggleChat() { document.getElementById('chatPanel').classList.toggle('open'); }
+    async function sendChat() {
+        var input = document.getElementById('chatInput'), msg = input.value.trim();
+        if (!msg) return; input.value = '';
+        var ml = document.getElementById('chatMessages');
+        ml.innerHTML += '<div class="chat-msg user">' + esc(msg) + '</div>';
+        var tid = 't-' + Date.now();
+        ml.innerHTML += '<div class="chat-msg assistant" id="' + tid + '">Thinking...</div>';
+        ml.scrollTop = ml.scrollHeight;
+        try {
+            var _apiKey = localStorage.getItem('brain_api_key') || '';
+            var _headers = {'Content-Type': 'application/json'};
+            if (_apiKey) _headers['X-API-Key'] = _apiKey;
+            var r = await fetch(window.location.origin + '/api/v1/chat', { method: 'POST', headers: _headers, body: JSON.stringify({ message: msg, history: chatHistory }) });
+            document.getElementById(tid).innerHTML = esc(r.reply);
+            chatHistory.push({ role: 'user', parts: [msg] }); chatHistory.push({ role: 'model', parts: [r.reply] });
+            if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
+            localStorage.setItem('brain_chat_history', JSON.stringify(chatHistory));
+        } catch(e) { document.getElementById(tid).innerHTML = '<span style="color:#f87171">' + esc(e.message) + '</span>'; }
+        ml.scrollTop = ml.scrollHeight;
+    }
+
+    
+    document.addEventListener('click', function(e) {
+        var cp = document.getElementById('chatPanel');
+        if (cp && cp.classList.contains('open') && !e.target.closest('.chat-panel') && !e.target.closest('[onclick*="toggleChat"]')) {
+            cp.classList.remove('open');
+        }
+    });
+    </script>
+    <script>
+    const API_URL = window.location.origin + '/api/v1';
+    let apiKey = localStorage.getItem('brain_api_key') || '';
+    let allItems = [];
+    let currentYear, currentMonth;
+    let selectedDate = null;
+
+    const TYPE_COLORS = { note: '#4ade80', code: '#22d3ee', bookmark: '#fbbf24', task: '#f87171' };
+    const TYPE_ICONS = { note: '📝', code: '💻', bookmark: '🔖', task: '✅' };
+    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+    // Auth
+    function showAuth() { document.getElementById('authOverlay').style.display = 'flex'; }
+    function hideAuth() { document.getElementById('authOverlay').style.display = 'none'; }
+    document.getElementById('authConnectBtn').addEventListener('click', async () => {
+        const k = document.getElementById('authKeyInput').value.trim();
+        if (!k) return;
+        apiKey = k; localStorage.setItem('brain_api_key', k);
+        try {
+            const res = await fetch(API_URL+'/stats', {headers:{'X-API-Key':apiKey}});
+            if (!res.ok) throw new Error();
+            hideAuth(); loadCalendar();
+        } catch(e) {
+            document.getElementById('authError').textContent = 'Invalid key.';
+            document.getElementById('authError').style.display = 'block';
+            apiKey = ''; localStorage.removeItem('brain_api_key');
+        }
+    });
+    document.getElementById('authKeyInput').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('authConnectBtn').click(); });
+
+    async function checkAuth() {
+        try {
+            const status = await fetch(API_URL.replace('/api/v1','') + '/api/v1/auth/status').then(r=>r.json());
+            if (status.auth_enabled && !apiKey) { showAuth(); return; }
+            if (apiKey) {
+                const res = await fetch(API_URL+'/stats', {headers:{'X-API-Key':apiKey}});
+                if (!res.ok) { apiKey=''; localStorage.removeItem('brain_api_key'); showAuth(); return; }
+            }
+            hideAuth(); loadCalendar();
+        } catch(e) { showAuth(); }
+    }
+
+    async function loadCalendar() {
+        try {
+            allItems = await fetch(API_URL+'/items?limit=10000', {headers:{'X-API-Key':apiKey}}).then(r=>r.json());
+            const now = new Date();
+            currentYear = now.getFullYear();
+            currentMonth = now.getMonth();
+            renderCalendar();
+        } catch(e) { console.error('Load error:', e); }
+    }
+
+    function prevMonth() {
+        currentMonth--;
+        if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+        selectedDate = null;
+        closeDayPanel();
+        renderCalendar();
+    }
+
+    function nextMonth() {
+        currentMonth++;
+        if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+        selectedDate = null;
+        closeDayPanel();
+        renderCalendar();
+    }
+
+    function goToday() {
+        const now = new Date();
+        currentYear = now.getFullYear();
+        currentMonth = now.getMonth();
+        selectedDate = formatDate(now);
+        renderCalendar();
+        showDayPanel(selectedDate);
+    }
+
+    function formatDate(d) {
+        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    }
+
+    function getItemsForDate(dateStr) {
+        return allItems.filter(item => {
+            const created = (item.created_at || '').substring(0, 10);
+            const updated = (item.updated_at || '').substring(0, 10);
+            return created === dateStr || updated === dateStr;
+        });
+    }
+
+    function renderCalendar() {
+        // Header
+        document.getElementById('calMonth').textContent = MONTHS[currentMonth] + ' ' + currentYear;
+
+        // Grid
+        const firstDay = new Date(currentYear, currentMonth, 1);
+        const lastDay = new Date(currentYear, currentMonth + 1, 0);
+        const startDay = firstDay.getDay();
+        const daysInMonth = lastDay.getDate();
+        const prevMonthLast = new Date(currentYear, currentMonth, 0).getDate();
+        const today = formatDate(new Date());
+
+        let html = '';
+        const totalCells = Math.ceil((startDay + daysInMonth) / 7) * 7;
+
+        for (let i = 0; i < totalCells; i++) {
+            let date, dateStr, isOther = false;
+
+            if (i < startDay) {
+                // Previous month
+                const d = prevMonthLast - startDay + i + 1;
+                const pm = currentMonth === 0 ? 11 : currentMonth - 1;
+                const py = currentMonth === 0 ? currentYear - 1 : currentYear;
+                dateStr = py + '-' + String(pm+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+                isOther = true;
+            } else if (i >= startDay + daysInMonth) {
+                // Next month
+                const d = i - startDay - daysInMonth + 1;
+                const nm = currentMonth === 11 ? 0 : currentMonth + 1;
+                const ny = currentMonth === 11 ? currentYear + 1 : currentYear;
+                dateStr = ny + '-' + String(nm+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+                isOther = true;
+            } else {
+                const d = i - startDay + 1;
+                dateStr = currentYear + '-' + String(currentMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+            }
+
+            const items = getItemsForDate(dateStr);
+            const isToday = dateStr === today;
+            const isSelected = dateStr === selectedDate;
+            const dayNum = parseInt(dateStr.split('-')[2]);
+
+            const dots = items.slice(0, 6).map(item =>
+                '<div class="cal-dot" style="background:' + TYPE_COLORS[item.item_type] + '"></div>'
+            ).join('');
+
+            const firstItem = items.length > 0 ? esc(items[0].title.substring(0, 18)) : '';
+            const moreText = items.length > 1 ? '+' + (items.length - 1) + ' more' : '';
+
+            let classes = 'cal-day';
+            if (isOther) classes += ' other-month';
+            if (isToday) classes += ' today';
+            if (isSelected) classes += ' selected';
+
+            html += '<div class="' + classes + '" onclick="selectDay(\'' + dateStr + '\')">' +
+                '<div class="cal-day-num">' + dayNum + '</div>' +
+                (items.length > 0 ? '<div class="cal-day-count">' + items.length + '</div>' : '') +
+                '<div class="cal-dots">' + dots + '</div>' +
+                (firstItem ? '<div class="cal-day-items">' + firstItem + '</div>' : '') +
+                (moreText ? '<div class="cal-day-items" style="color:var(--accent)">' + moreText + '</div>' : '') +
+            '</div>';
+        }
+
+        document.getElementById('calGrid').innerHTML = html;
+
+        // Stats
+        const monthItems = allItems.filter(item => {
+            const d = (item.created_at || '').substring(0, 7);
+            return d === currentYear + '-' + String(currentMonth+1).padStart(2,'0');
+        });
+        const byType = {};
+        monthItems.forEach(item => { byType[item.item_type] = (byType[item.item_type] || 0) + 1; });
+
+        document.getElementById('calStats').innerHTML =
+            '<div class="cal-stat"><span class="cal-stat-val">' + monthItems.length + '</span> items this month</div>' +
+            '<div class="cal-stat">📝 <span class="cal-stat-val">' + (byType.note||0) + '</span></div>' +
+            '<div class="cal-stat">💻 <span class="cal-stat-val">' + (byType.code||0) + '</span></div>' +
+            '<div class="cal-stat">🔖 <span class="cal-stat-val">' + (byType.bookmark||0) + '</span></div>' +
+            '<div class="cal-stat">✅ <span class="cal-stat-val">' + (byType.task||0) + '</span></div>' +
+            '<div class="cal-stat" style="margin-left:auto;color:var(--text-muted)">' + allItems.length + ' total items</div>';
+    }
+
+    function selectDay(dateStr) {
+        selectedDate = dateStr;
+        renderCalendar();
+        showDayPanel(dateStr);
+    }
+
+    function showDayPanel(dateStr) {
+        const panel = document.getElementById('dayPanel');
+        const items = getItemsForDate(dateStr);
+        const d = new Date(dateStr + 'T12:00:00');
+
+        document.getElementById('dayPanelTitle').textContent = DAYS[d.getDay()] + ', ' + MONTHS[d.getMonth()] + ' ' + d.getDate();
+        document.getElementById('dayPanelSub').textContent = items.length + ' item' + (items.length !== 1 ? 's' : '') + ' created or updated';
+
+        if (items.length === 0) {
+            document.getElementById('dayPanelBody').innerHTML =
+                '<div class="day-empty">' +
+                    '<div class="day-empty-icon">📅</div>' +
+                    '<div class="day-empty-text">No items on this day</div>' +
+                '</div>';
+        } else {
+            document.getElementById('dayPanelBody').innerHTML = items.map(item => {
+                const tags = Array.isArray(item.tags) ? item.tags : JSON.parse(item.tags || '[]');
+                const typeColor = TYPE_COLORS[item.item_type] || '#94a3b8';
+                return '<div class="day-item" onclick="window.location.href=\'/browser\'">' +
+                    '<div class="day-item-header">' +
+                        '<span class="day-item-type" style="background:'+typeColor+'18;color:'+typeColor+'">'+item.item_type+'</span>' +
+                        '<span class="day-item-title">'+esc(item.title)+'</span>' +
+                    '</div>' +
+                    '<div class="day-item-content">'+esc((item.content||'').substring(0, 150))+'</div>' +
+                    '<div class="day-item-tags">' + tags.slice(0,4).map(t => '<span class="day-item-tag">#'+esc(t)+'</span>').join('') + '</div>' +
+                '</div>';
+            }).join('');
+        }
+
+        panel.classList.add('open');
+    }
+
+    function closeDayPanel() {
+        document.getElementById('dayPanel').classList.remove('open');
+        selectedDate = null;
+        renderCalendar();
+    }
+
+    // Clock
+        // ── Search ──
+    var searchTimer;
+    function handleSearch(q) {
+        clearTimeout(searchTimer);
+        if (!q.trim()) return;
+        searchTimer = setTimeout(function() {
+            window.location.href = '/browser?search=' + encodeURIComponent(q);
+        }, 800);
+    }
+
+    function startTimeClock() {
+        const update = () => {
+            const now = new Date();
+            const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+            document.getElementById('topTime').textContent = now.getDate().toString().padStart(2,'0')+' '+months[now.getMonth()]+' '+now.getFullYear()+' | '+now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0')+' PST';
+        };
+        update(); setInterval(update, 30000);
+    }
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    let toastTimer;
+    function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2500); }
+
+    // WebSocket
+    var socket = null;
+    try {
+        socket = io();
+        socket.on('connect', () => {
+            socket.emit('identify', { name: localStorage.getItem('brain_user_name') || 'User' });
+            socket.emit('navigate', { page: '/calendar' });
+        });
+        socket.on('item_created', () => loadCalendar());
+        socket.on('item_updated', () => loadCalendar());
+        socket.on('item_deleted', () => loadCalendar());
+    } catch(e) { console.warn('WebSocket unavailable:', e); }
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeDayPanel();
+        if (e.key === 'ArrowLeft') prevMonth();
+        if (e.key === 'ArrowRight') nextMonth();
+    });
+
+    startTimeClock();
+    checkAuth();
+    </script>
+</body>
+</html>

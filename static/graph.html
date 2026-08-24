@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graph View — Second Brain</title>
+    <script src="https://unpkg.com/vis-network@9.1.6/standalone/umd/vis-network.min.js">
+    document.addEventListener('click', function(e) {
+        var cp = document.getElementById('chatPanel');
+        if (cp && cp.classList.contains('open') && !e.target.closest('.chat-panel') && !e.target.closest('[onclick*="toggleChat"]')) {
+            cp.classList.remove('open');
+        }
+    });
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg: #0d1117; --surface: #161b22; --border: rgba(255,255,255,0.06); --text: #e6edf3; --text-dim: #7d8590; --accent: #8b5cf6; --sidebar-w: 56px; --topbar-h: 52px; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; height: 100vh; width: 100vw; }
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; } }
+        :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        .sidebar { position: fixed; top: 0; left: 0; width: var(--sidebar-w); height: 100%; background: rgba(13,17,23,0.95); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding: 12px 0; z-index: 100; }
+        .sidebar-top { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+        .sidebar-bottom { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .sb-logo { width: 32px; height: 32px; margin-bottom: 12px; cursor: pointer; background: linear-gradient(135deg, #8b5cf6, #a78bfa, #c4b5fd); clip-path: polygon(50% 0%, 85% 25%, 85% 75%, 50% 100%, 15% 75%, 15% 25%); transition: filter 0.3s; }
+        .sb-logo:hover { filter: brightness(1.3) drop-shadow(0 0 10px rgba(139,92,246,0.6)); }
+        .sb-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-dim); transition: all 0.2s; border: none; background: none; position: relative; text-decoration: none; }
+        .sb-icon:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+        .sb-icon.active { color: var(--accent); }
+        .sb-icon.active::before { content: ''; position: absolute; left: -12px; top: 50%; transform: translateY(-50%); width: 3px; height: 18px; background: var(--accent); border-radius: 0 3px 3px 0; }
+        .sb-divider { width: 24px; height: 1px; background: var(--border); margin: 6px 0; }
+        .sb-profile { width: 36px; height: 36px; border-radius: 50%; position: relative; cursor: pointer; margin-top: 8px; }
+        .sb-profile::before { content: ''; position: absolute; inset: -3px; border-radius: 50%; background: conic-gradient(from 0deg, #8b5cf6, #a78bfa, #8b5cf6); z-index: -1; animation: spin 4s linear infinite; }
+        .sb-profile-inner { width: 100%; height: 100%; border-radius: 50%; background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .sb-profile-label { font-size: 8px; font-weight: 700; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 4px; text-align: center; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .topbar { position: fixed; top: 0; left: var(--sidebar-w); right: 0; height: var(--topbar-h); background: rgba(13,17,23,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; z-index: 90; }
+        .topbar-tabs { display: flex; gap: 24px; margin-right: 24px; }
+        .tab-btn { font-size: 14px; font-weight: 600; color: var(--text-dim); cursor: pointer; background: none; border: none; padding: 6px 0; position: relative; transition: color 0.2s; text-decoration: none; }
+        .tab-btn.active { color: var(--text); }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px; background: var(--text); border-radius: 1px; }
+        
+        .search-box { flex: 1; max-width: 320px; position: relative; }
+        .search-box input { width: 100%; padding: 7px 12px 7px 32px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; outline: none; }
+        .search-box input:focus { border-color: rgba(139,92,246,0.4); }
+        .search-box input::placeholder { color: var(--text-dim); }
+        .search-box svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-dim); }
+        .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+        .topbar-time { font-size: 12px; color: var(--text-dim); font-weight: 500; letter-spacing: 0.04em; white-space: nowrap; }
+        #graphContainer { position: fixed; top: var(--topbar-h); left: var(--sidebar-w); right: 0; bottom: 0; background: var(--bg); display: none; }
+        #canvasContainer { position: fixed; top: var(--topbar-h); left: var(--sidebar-w); right: 0; bottom: 0; background: var(--bg); display: block; }
+        #canvasContainer canvas { width: 100%; height: 100%; }
+        .view-toggle { position: fixed; top: calc(var(--topbar-h) + 12px); left: calc(var(--sidebar-w) + 12px); display: flex; gap: 4px; z-index: 85; background: rgba(22,27,34,0.9); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
+        .view-toggle-btn { padding: 5px 12px; border: none; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; background: none; color: var(--text-dim); }
+        .view-toggle-btn.active { background: var(--accent); color: white; }
+        .view-toggle-btn:hover:not(.active) { background: rgba(255,255,255,0.06); color: var(--text); }
+        .controls { position: fixed; bottom: 16px; left: calc(var(--sidebar-w) + 16px); display: flex; gap: 6px; z-index: 80; }
+        .ctrl-btn { width: 34px; height: 34px; background: rgba(22,27,34,0.9); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: 8px; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 15px; transition: all 0.15s; }
+        .ctrl-btn:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+        .auth-overlay { position: fixed; inset: 0; background: rgba(13,17,23,0.95); backdrop-filter: blur(20px); z-index: 500; display: flex; align-items: center; justify-content: center; }
+        .auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 32px; width: 360px; text-align: center; }
+        .auth-card h2 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+        .auth-card p { font-size: 12px; color: var(--text-dim); margin-bottom: 18px; }
+        .auth-card input { width: 100%; padding: 9px 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; outline: none; margin-bottom: 12px; font-family: monospace; }
+        .auth-card input:focus { border-color: var(--accent); }
+        .auth-card button { width: 100%; padding: 9px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+        #authError { color: #f87171; font-size: 11px; margin-top: 8px; display: none; }
+        .side-panel { position: fixed; top: var(--topbar-h); right: -400px; width: 400px; bottom: 0; background: rgba(13,17,23,0.97); backdrop-filter: blur(16px); border-left: 1px solid var(--border); z-index: 90; overflow-y: auto; transition: right 0.3s ease; display: flex; flex-direction: column; }
+        .side-panel.open { right: 0; }
+        .panel-tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 16px; }
+        .panel-tab { padding: 10px 14px; font-size: 11px; font-weight: 600; color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; background: none; border-top: none; border-left: none; border-right: none; }
+        .panel-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .panel-tab:hover:not(.active) { color: var(--text); }
+        .panel-section { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .panel-section:last-child { border-bottom: none; }
+        .panel-section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin-bottom: 10px; }
+        .panel-item-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; line-height: 1.3; }
+        .panel-item-type { display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 4px; margin-bottom: 8px; }
+        .panel-item-content { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+        .panel-item-content.truncated { max-height: 120px; overflow: hidden; position: relative; }
+        .panel-item-content.truncated::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 40px; background: linear-gradient(transparent, rgba(13,17,23,0.97)); }
+        .panel-expand-btn { font-size: 11px; color: var(--accent); cursor: pointer; background: none; border: none; padding: 4px 0; margin-top: 4px; }
+        .panel-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+        .panel-tag { font-size: 10px; padding: 3px 10px; border-radius: 12px; border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; transition: all 0.15s; }
+        .panel-tag:hover { background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.3); color: var(--accent); }
+        .panel-meta-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 11px; }
+        .panel-meta-label { color: var(--text-dim); }
+        .panel-meta-value { color: var(--text); font-weight: 500; }
+        .panel-actions { display: flex; gap: 8px; }
+        .panel-action-btn { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); color: var(--text-dim); font-size: 11px; font-weight: 500; cursor: pointer; text-align: center; transition: all 0.15s; text-decoration: none; display: block; }
+        .panel-action-btn:hover { background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.3); color: var(--accent); }
+        .panel-sections-list { }
+        .panel-section-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: background 0.15s; }
+        .panel-section-item:hover { background: rgba(255,255,255,0.04); }
+        .panel-section-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .panel-section-count { margin-left: auto; font-size: 10px; color: var(--text-dim); background: rgba(255,255,255,0.04); padding: 1px 6px; border-radius: 4px; }
+        .panel-empty { text-align: center; padding: 30px 16px; color: var(--text-dim); font-size: 12px; }
+        .panel-empty .icon { font-size: 28px; margin-bottom: 8px; }
+        .toast { position: fixed; top: 64px; left: 50%; transform: translateX(-50%) translateY(-16px); padding: 7px 14px; background: rgba(22,27,34,0.95); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; z-index: 300; opacity: 0; transition: all 0.2s; pointer-events: none; }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body>
+    <div class="auth-overlay" id="authOverlay" style="display:none">
+        <div class="auth-card">
+            <div style="font-size:28px;margin-bottom:10px;">🧠</div>
+            <h2>Connect to your Second Brain</h2>
+            <p>Enter your API key to access the Graph View</p>
+            <input type="text" id="authKeyInput" placeholder="sb_..." autofocus>
+            <button id="authConnectBtn">Connect</button>
+            <div id="authError"></div>
+        </div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <nav class="sidebar">
+        <div class="sidebar-top">
+            <a href="/" class="sb-logo" style="text-decoration:none" title="Second Brain"></a>
+            <a href="/" class="sb-icon" aria-label="Dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></a>
+            <a href="/hub" class="sb-icon" aria-label="Hub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></a>
+            <a href="/knowledge" class="sb-icon" aria-label="Knowledge Web"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><line x1="8.5" y1="6" x2="15.5" y2="6"/><line x1="6" y1="8.5" x2="6" y2="15.5"/></svg></a>
+            <a href="/graph" class="sb-icon active" aria-label="Graph View"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><line x1="8.5" y1="6" x2="15.5" y2="6"/><line x1="6" y1="8.5" x2="6" y2="15.5"/><line x1="18" y1="8.5" x2="18" y2="15.5"/><line x1="8.5" y1="18" x2="15.5" y2="18"/></svg></a>
+            <a href="/calendar" class="sb-icon" aria-label="Calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><rect x="7" y="14" width="3" height="3" rx="0.5"/></svg></a>
+            <a href="/skills" class="sb-icon" aria-label="Skills"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></a>
+            <a href="/browser" class="sb-icon" aria-label="Browser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></a>
+            <a href="/colleagues" class="sb-icon" aria-label="Colleagues"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></a>
+            <div class="sb-divider"></div>
+            <a href="/settings" class="sb-icon" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></a>
+        </div>
+        <div class="sidebar-bottom">
+            <div class="sb-profile" title="AI Assistant"><div class="sb-profile-inner">🔮</div></div>
+            <div class="sb-profile-label">AI<br>ASSISTANT</div>
+        </div>
+    </nav>
+
+    <div class="topbar">
+        <div class="topbar-tabs">
+            <a href="/" class="tab-btn">Home</a>
+            <a href="/knowledge" class="tab-btn">Knowledge Web</a>
+            <a href="/graph" class="tab-btn active">Graph View</a>
+            <a href="/hub" class="tab-btn">Personal Hub</a>
+            <a href="/settings" class="tab-btn">Settings</a>
+        </div>
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="searchInput" placeholder="Search knowledge web..." aria-label="Search" oninput="handleSearch(this.value)">
+        </div>
+        <div class="topbar-right">
+                        <span class="topbar-time" id="topTime"></span>
+                        <button class="ctrl-btn" onclick="toggleChat()" title="AI Chat" style="width:34px;height:34px">💬</button>
+        </div>
+    </div>
+
+    <div id="graphContainer" style="display:none"></div>
+    <div id="canvasContainer"><canvas id="knowledgeCanvas"></canvas></div>
+
+    <div class="view-toggle">
+        <button class="view-toggle-btn active" onclick="switchView('canvas')" id="btnCanvas">✨ Canvas</button>
+        <button class="view-toggle-btn" onclick="switchView('visjs')" id="btnVisjs">🔗 Force Graph</button>
+    </div>
+
+    <!-- Chat Panel -->
+    <div id="chatPanel" style="position:fixed;top:var(--topbar-h);right:-400px;width:400px;bottom:0;background:rgba(13,17,23,0.95);backdrop-filter:blur(16px);border-left:1px solid var(--border);z-index:95;display:flex;flex-direction:column;transition:right 0.3s">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+            <h3 style="font-size:13px;font-weight:600">💬 AI Chat</h3>
+            <button onclick="toggleChat()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px">&times;</button>
+        </div>
+        <div id="chatMessages" style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px">
+            <div class="chat-msg assistant" style="font-size:13px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border)">Ask me anything about your knowledge base.<br>I search your memories and use Gemini to answer.</div>
+        </div>
+        <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px">
+            <input type="text" id="chatInput" placeholder="Ask about your memories..." style="flex:1;padding:8px 12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none" onkeydown="if(event.key==='Enter')sendChat()">
+            <button onclick="sendChat()" style="padding:8px 14px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer">Send</button>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="ctrl-btn" onclick="if(currentView==='visjs'&&network)network.moveTo({scale:network.getScale()*1.3});else if(currentView==='canvas')canvasDoZoom(1.3)" title="Zoom in">+</button>
+        <button class="ctrl-btn" onclick="if(currentView==='visjs'&&network)network.moveTo({scale:network.getScale()*0.7});else if(currentView==='canvas')canvasDoZoom(0.7)" title="Zoom out">−</button>
+        <button class="ctrl-btn" onclick="if(currentView==='visjs'&&network)network.fit({animation:true});else if(currentView==='canvas')canvasFitAll()" title="Fit all">⊡</button>
+        <button class="ctrl-btn" onclick="togglePanel()" title="Sections">≡</button>
+        <button class="ctrl-btn" onclick="toggleGraphPhysics()" title="Physics">⚙</button>
+    </div>
+    <div id="graphPhysicsPanel" style="display:none;position:fixed;bottom:60px;left:calc(var(--sidebar-w) + 16px);background:rgba(13,17,23,0.95);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:10px;padding:14px 16px;z-index:85;min-width:200px">
+        <div style="font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Physics Controls</div>
+        <div id="canvasPhysicsControls" style="display:none">
+            <div style="margin-bottom:8px"><span style="font-size:11px;color:var(--text-dim)">Rotation Speed</span><span style="font-size:11px;color:var(--accent);float:right" id="gRotVal">1.0×</span><input type="range" min="0" max="5" step="0.1" value="1" style="width:100%;height:3px;accent-color:var(--accent)" oninput="gSetRotation(this.value)"></div>
+            <div style="margin-bottom:8px"><span style="font-size:11px;color:var(--text-dim)">Node Spread</span><span style="font-size:11px;color:var(--accent);float:right" id="gSpreadVal">1.0×</span><input type="range" min="0.2" max="3" step="0.1" value="1" style="width:100%;height:3px;accent-color:var(--accent)" oninput="gSetSpread(this.value)"></div>
+            <div><span style="font-size:11px;color:var(--text-dim)">Glow Intensity</span><span style="font-size:11px;color:var(--accent);float:right" id="gGlowVal">1.0×</span><input type="range" min="0" max="3" step="0.1" value="1" style="width:100%;height:3px;accent-color:var(--accent)" oninput="gSetGlow(this.value)"></div>
+        </div>
+        <div id="visjsPhysicsControls" style="display:none">
+            <div style="margin-bottom:8px"><span style="font-size:11px;color:var(--text-dim)">Gravity</span><span style="font-size:11px;color:var(--accent);float:right" id="gGravVal">-40</span><input type="range" min="-200" max="0" step="5" value="-40" style="width:100%;height:3px;accent-color:var(--accent)" oninput="gSetGravity(this.value)"></div>
+            <div style="margin-bottom:8px"><span style="font-size:11px;color:var(--text-dim)">Spring Length</span><span style="font-size:11px;color:var(--accent);float:right" id="gSpringVal">150</span><input type="range" min="50" max="500" step="10" value="150" style="width:100%;height:3px;accent-color:var(--accent)" oninput="gSetSpring(this.value)"></div>
+            <div><span style="font-size:11px;color:var(--text-dim)">Central Gravity</span><span style="font-size:11px;color:var(--accent);float:right" id="gCentralVal">0.005</span><input type="range" min="0" max="0.05" step="0.001" value="0.005" style="width:100%;height:3px;accent-color:var(--accent)" oninput="gSetCentral(this.value)"></div>
+        </div>
+    </div>
+
+    <div class="side-panel" id="sidePanel">
+        <div class="panel-tabs">
+            <button class="panel-tab active" onclick="showPanelTab('detail',this)" id="tabDetail">Details</button>
+            <button class="panel-tab" onclick="showPanelTab('sections',this)" id="tabSections">Sections</button>
+        </div>
+        <div id="panelDetail" style="flex:1;overflow-y:auto"></div>
+        <div id="panelSections" style="flex:1;overflow-y:auto;display:none"></div>
+    </div>
+
+    <script src="/vendor/socket.io.min.js?v=1787384686"></script>
+    <script>
+    var API_URL = window.location.origin + '/api/v1';
+    var apiKey = localStorage.getItem('brain_api_key') || '';
+    var network = null;
+    var graphData = null;
+    var HUB_COLORS = { topics: '#4ade80', repos: '#a78bfa', skills: '#fbbf24' };
+
+    // ── Auth ──
+    function showAuth() { document.getElementById('authOverlay').style.display = 'flex'; }
+    function hideAuth() { document.getElementById('authOverlay').style.display = 'none'; }
+
+    document.getElementById('authConnectBtn').addEventListener('click', function() {
+        var k = document.getElementById('authKeyInput').value.trim();
+        if (!k) return;
+        apiKey = k;
+        localStorage.setItem('brain_api_key', k);
+        fetch(API_URL + '/stats', { headers: { 'X-API-Key': apiKey } })
+            .then(function(res) { if (!res.ok) throw new Error(); return res.json(); })
+            .then(function() { hideAuth(); loadGraph(); })
+            .catch(function() {
+                document.getElementById('authError').textContent = 'Invalid key.';
+                document.getElementById('authError').style.display = 'block';
+                apiKey = '';
+                localStorage.removeItem('brain_api_key');
+            });
+    });
+    document.getElementById('authKeyInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') document.getElementById('authConnectBtn').click();
+    });
+
+    // ── Clock ──
+        // ── Search ──
+    var searchTimer;
+    function handleSearch(q) {
+        clearTimeout(searchTimer);
+        if (!q.trim()) return;
+        searchTimer = setTimeout(function() {
+            window.location.href = '/browser?search=' + encodeURIComponent(q);
+        }, 800);
+    }
+
+    function startTimeClock() {
+        function update() {
+            var now = new Date();
+            var mo = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+            document.getElementById('topTime').textContent =
+                now.getDate().toString().padStart(2,'0') + ' ' + mo[now.getMonth()] + ' ' + now.getFullYear() +
+                ' | ' + now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0') + ' PST';
+        }
+        update();
+        setInterval(update, 30000);
+    }
+
+    // ── Load Graph ──
+    function loadGraph() {
+        if (!apiKey) { showAuth(); return; }
+        fetch(API_URL + '/graph', { headers: { 'X-API-Key': apiKey } })
+            .then(function(res) {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            })
+            .then(function(data) {
+                var ls = document.getElementById('loadStatus');
+                if (ls) ls.textContent = 'Rendering ' + data.stats.total_nodes + ' nodes...';
+                graphData = data;
+                renderGraph();
+                if (currentView === 'canvas') renderCanvasGraph();
+                showToast('Loaded ' + data.stats.total_nodes + ' nodes, ' + data.stats.total_sections + ' sections');
+                renderSections(data.sections || []);
+            })
+            .catch(function(e) {
+                document.getElementById('graphContainer').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:12px;color:#f87171"><div style="font-size:32px">⚠️</div><div style="font-size:14px;font-weight:500">Failed to load graph</div><div style="font-size:11px;color:#7d8590">' + esc(e.message) + '</div><button onclick="loadGraph()" style="margin-top:8px;padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px">Retry</button></div>';
+                showToast('Error: ' + e.message);
+            });
+    }
+
+    // ── Render vis.js ──
+    function renderGraph() {
+        if (!graphData) return;
+        if (typeof vis === 'undefined') {
+            showToast('vis.js library failed to load. Check your internet connection.');
+            document.getElementById('graphContainer').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:12px;color:#f87171"><div style="font-size:32px">⚠️</div><div style="font-size:14px;font-weight:500">vis.js failed to load</div><div style="font-size:11px;color:#7d8590">The graph requires vis.js from a CDN. Check your internet connection and reload.</div><button onclick="location.reload()" style="margin-top:8px;padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px">Reload</button></div>';
+            return;
+        }
+
+        var topics = [], repos = [], skills = [];
+        graphData.nodes.forEach(function(n) {
+            if (n.item_type === 'tag' || n.node_type === 'tag') skills.push(n);
+            else if (n.tags && n.tags.indexOf('graphify') !== -1) repos.push(n);
+            else topics.push(n);
+        });
+
+        var allNodes = [
+            { id: '_core', label: 'Knowledge Core', size: 30,
+              color: { background: '#fbbf24', border: '#f59e0b', highlight: { background: '#fde68a', border: '#fff' } },
+              font: { color: '#fbbf24', size: 12, face: 'Inter' },
+              borderWidth: 3, shape: 'diamond',
+              shadow: { enabled: true, color: 'rgba(251,191,36,0.4)', size: 20 } },
+            { id: '_hub_topics', label: 'MY PROJECTS', size: 0,
+              color: { background: '#0d1117', border: '#0d1117' },
+              font: { color: HUB_COLORS.topics, size: 22, face: 'Inter' },
+              borderWidth: 0, shape: 'label', physics: false, x: -250, y: -50 },
+            { id: '_hub_repos', label: 'REPOSITORIES', size: 0,
+              color: { background: '#0d1117', border: '#0d1117' },
+              font: { color: HUB_COLORS.repos, size: 22, face: 'Inter' },
+              borderWidth: 0, shape: 'label', physics: false, x: 250, y: -50 },
+            { id: '_hub_skills', label: 'SKILLS', size: 0,
+              color: { background: '#0d1117', border: '#0d1117' },
+              font: { color: HUB_COLORS.skills, size: 22, face: 'Inter' },
+              borderWidth: 0, shape: 'label', physics: false, x: 0, y: 250 }
+        ];
+
+        function makeNode(n, hubKey) {
+            var hc = HUB_COLORS[hubKey];
+            var isTag = n.node_type === 'tag' || n.item_type === 'tag';
+            return {
+                id: n.id, label: n.label,
+                size: isTag ? Math.max(4, n.size * 0.6) : n.size,
+                color: {
+                    background: isTag ? hc : (n.item_type === 'note' ? '#4ade80' : n.item_type === 'code' ? '#22d3ee' : n.item_type === 'task' ? '#f87171' : '#fbbf24'),
+                    border: hc,
+                    highlight: { background: hc, border: '#fff' },
+                    hover: { background: hc, border: '#fff' }
+                },
+                font: { color: '#e6edf3', size: Math.max(8, Math.min(12, n.size / 2)), face: 'Inter', strokeWidth: 2, strokeColor: '#0d1117' },
+                borderWidth: isTag ? 1 : 2,
+                shadow: { enabled: true, color: hc + '30', size: Math.max(4, n.size) }
+            };
+        }
+
+        topics.forEach(function(n) { allNodes.push(makeNode(n, 'topics')); });
+        repos.forEach(function(n) { allNodes.push(makeNode(n, 'repos')); });
+        skills.forEach(function(n) { allNodes.push(makeNode(n, 'skills')); });
+
+        var edges = graphData.edges.map(function(e, i) {
+            var srcNode = graphData.nodes.find(function(n) { return n.id === e.from; });
+            var hubKey = 'topics';
+            if (srcNode && srcNode.tags && srcNode.tags.indexOf('graphify') !== -1) hubKey = 'repos';
+            else if (srcNode && (srcNode.node_type === 'tag' || srcNode.item_type === 'tag')) hubKey = 'skills';
+            var hc = HUB_COLORS[hubKey];
+            return { id: 'e' + i, from: e.from, to: e.to,
+                color: { color: hc + '15', highlight: hc + '60', hover: hc + '40' },
+                width: 0.4, smooth: { type: 'continuous', roundness: 0.2 } };
+        });
+
+        // Core edges
+        ['_hub_topics', '_hub_repos', '_hub_skills'].forEach(function(hid, i) {
+            edges.push({ id: 'core_' + i, from: '_core', to: hid,
+                color: { color: 'rgba(251,191,36,0.15)', highlight: 'rgba(251,191,36,0.4)' },
+                width: 1.5, smooth: { type: 'continuous' } });
+        });
+
+        var container = document.getElementById('graphContainer');
+        network = new vis.Network(container,
+            { nodes: new vis.DataSet(allNodes), edges: new vis.DataSet(edges) },
+            {
+                physics: { enabled: true, solver: 'forceAtlas2Based',
+                    forceAtlas2Based: { gravitationalConstant: -40, centralGravity: 0.005, springLength: 150, springConstant: 0.015, damping: 0.5, avoidOverlap: 0.8 },
+                    stabilization: { enabled: true, iterations: 300, updateInterval: 25 } },
+                interaction: { hover: true, tooltipDelay: 100, zoomView: true, dragView: true },
+                nodes: { shape: 'dot', scaling: { min: 3, max: 30 } },
+                layout: { improvedLayout: true }
+            }
+        );
+
+        network.on('click', function(params) {
+            if (params.nodes.length > 0) {
+                var nodeId = params.nodes[0];
+                if (nodeId === '_core' || nodeId.indexOf('_hub_') === 0) return;
+                var node = graphData.nodes.find(function(n) { return n.id === nodeId; });
+                if (node) showNodeDetail(node);
+            }
+        });
+    }
+
+    // ── Sidebar ──
+    var TYPE_COLORS = { note: '#4ade80', code: '#22d3ee', task: '#f87171', bookmark: '#fbbf24', skill: '#fbbf24' };
+    var TYPE_ICONS = { note: '📝', code: '💻', task: '✅', bookmark: '🔖', skill: '⭐' };
+    var HUB_LABELS = { topics: 'My Projects', repos: 'Repositories', skills: 'Skills' };
+
+    function showNodeDetail(node) {
+        var tags = node.tags || [];
+        var type = node.item_type || node.node_type || 'note';
+        var color = TYPE_COLORS[type] || '#8b5cf6';
+        var icon = TYPE_ICONS[type] || '📄';
+        var hubKey = 'topics';
+        if (tags.indexOf('graphify') !== -1 || tags.indexOf('github') !== -1) hubKey = 'repos';
+        else if (type === 'tag') hubKey = 'skills';
+        var hubLabel = HUB_LABELS[hubKey] || hubKey;
+        var content = node.content_preview || node.content || '';
+        var isLong = content.length > 200;
+        // Find related nodes
+        var related = [];
+        if (graphData && graphData.nodes) {
+            related = graphData.nodes.filter(function(n) {
+                if (n.id === node.id) return false;
+                var nt = n.tags || [];
+                return tags.some(function(t) { return nt.indexOf(t) !== -1; });
+            }).slice(0, 5);
+        }
+        var html =
+            '<div class="panel-section">' +
+                '<div class="panel-item-type" style="background:' + color + '18;color:' + color + '">' + icon + ' ' + esc(type) + '</div>' +
+                '<div class="panel-item-title">' + esc(node.title || node.label || 'Untitled') + '</div>' +
+                '<div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">' + esc(hubLabel) + '</div>' +
+                '<div class="panel-actions">' +
+                    '<a href="/hub" class="panel-action-btn">📋 Open in Hub</a>' +
+                    '<button class="panel-action-btn" onclick="navigator.clipboard.writeText(\'' + esc(node.title || '').replace(/'/g, "\\'") + '\');showToast(\'Copied!\')">📋 Copy Title</button>' +
+                '</div>' +
+            '</div>' +
+            '<div class="panel-section">' +
+                '<div class="panel-section-title">Content</div>' +
+                '<div class="panel-item-content' + (isLong ? ' truncated' : '') + '" id="sidebarContent">' + esc(content.substring(0, 600)).replace(/\n/g, '<br>') + '</div>' +
+                (isLong ? '<button class="panel-expand-btn" onclick="toggleContentExpand()">Show more ↓</button>' : '') +
+            '</div>' +
+            '<div class="panel-section">' +
+                '<div class="panel-section-title">Tags</div>' +
+                '<div class="panel-tags">' + tags.map(function(t) { return '<span class="panel-tag">#' + esc(t) + '</span>'; }).join('') + '</div>' +
+            '</div>' +
+            '<div class="panel-section">' +
+                '<div class="panel-section-title">Metadata</div>' +
+                '<div class="panel-meta-row"><span class="panel-meta-label">Type</span><span class="panel-meta-value" style="color:' + color + '">' + esc(type) + '</span></div>' +
+                '<div class="panel-meta-row"><span class="panel-meta-label">Hub</span><span class="panel-meta-value">' + esc(hubLabel) + '</span></div>' +
+                '<div class="panel-meta-row"><span class="panel-meta-label">Content Length</span><span class="panel-meta-value">' + content.length + ' chars</span></div>' +
+                '<div class="panel-meta-row"><span class="panel-meta-label">Tags</span><span class="panel-meta-value">' + tags.length + '</span></div>' +
+            '</div>' +
+            (related.length ?
+            '<div class="panel-section">' +
+                '<div class="panel-section-title">Related Items (' + related.length + ')</div>' +
+                related.map(function(r) {
+                    var rc = TYPE_COLORS[r.item_type] || '#8b5cf6';
+                    return '<div class="panel-section-item"><div class="panel-section-dot" style="background:' + rc + '"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc((r.title || r.label || '').substring(0, 35)) + '</span><span class="panel-section-count">' + esc(r.item_type || '') + '</span></div>';
+                }).join('') +
+            '</div>' : '');
+        document.getElementById('panelDetail').innerHTML = html;
+        document.getElementById('sidePanel').classList.add('open');
+        showPanelTab('detail', document.getElementById('tabDetail'));
+    }
+
+    function showPanelTab(tab, btn) {
+        document.querySelectorAll('.panel-tab').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById('panelDetail').style.display = tab === 'detail' ? 'block' : 'none';
+        document.getElementById('panelSections').style.display = tab === 'sections' ? 'block' : 'none';
+    }
+
+    function toggleContentExpand() {
+        var el = document.getElementById('sidebarContent');
+        if (!el) return;
+        el.classList.toggle('truncated');
+        var btn = el.nextElementSibling;
+        if (btn) btn.textContent = el.classList.contains('truncated') ? 'Show more \u2193' : 'Show less \u2191';
+    }
+
+    function renderSections(sections) {
+        var body = document.getElementById('panelSections');
+        if (!body) return;
+        if (!sections.length) { body.innerHTML = '<div class="panel-empty"><div class="icon">📂</div><p>No sections found</p></div>'; return; }
+        var html = '<div class="panel-section"><div class="panel-section-title">Graph Sections</div><div class="panel-sections-list">';
+        sections.forEach(function(sec) {
+            html += '<div class="panel-section-item"><div class="panel-section-dot" style="background:' + sec.color + '"></div><span>' + esc(sec.heading) + '</span><span class="panel-section-count">' + sec.count + '</span></div>';
+        });
+        html += '</div></div>';
+        body.innerHTML = html;
+    }
+
+    function togglePanel() {
+        var p = document.getElementById('sidePanel');
+        if (!p.classList.contains('open')) {
+            showPanelTab('sections', document.getElementById('tabSections'));
+            p.classList.add('open');
+        } else {
+            p.classList.remove('open');
+        }
+    }
+
+    // Physics controls
+    var gRotSpeed=1, gSpread=1, gGlow=1;
+    function toggleGraphPhysics() {
+        var p = document.getElementById('graphPhysicsPanel');
+        p.style.display = p.style.display === 'none' ? 'block' : 'none';
+        document.getElementById('canvasPhysicsControls').style.display = currentView === 'canvas' ? 'block' : 'none';
+        document.getElementById('visjsPhysicsControls').style.display = currentView === 'visjs' ? 'block' : 'none';
+    }
+    function gSetRotation(v) { gRotSpeed = parseFloat(v); document.getElementById('gRotVal').textContent = parseFloat(v).toFixed(1) + '×'; }
+    function gSetSpread(v) { gSpread = parseFloat(v); document.getElementById('gSpreadVal').textContent = parseFloat(v).toFixed(1) + '×';
+        var w = window.innerWidth - 56, h = window.innerHeight - 52;
+        var hubDist = Math.min(w, h) * 0.38 * gSpread;
+        canvasNodes.forEach(function(n) { n.orbitRadius = hubDist + (Math.random()-0.5)*40; });
+    }
+    function gSetGlow(v) { gGlow = parseFloat(v); document.getElementById('gGlowVal').textContent = parseFloat(v).toFixed(1) + '×'; }
+    function gSetGravity(v) {
+        document.getElementById('gGravVal').textContent = v;
+        if (network) network.setOptions({ physics: { forceAtlas2Based: { gravitationalConstant: parseFloat(v) } } });
+    }
+    function gSetSpring(v) {
+        document.getElementById('gSpringVal').textContent = v;
+        if (network) network.setOptions({ physics: { forceAtlas2Based: { springLength: parseFloat(v) } } });
+    }
+    function gSetCentral(v) {
+        document.getElementById('gCentralVal').textContent = v;
+        if (network) network.setOptions({ physics: { forceAtlas2Based: { centralGravity: parseFloat(v) } } });
+    }
+
+    function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    var toastTimer;
+    function showToast(msg) { var t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(function() { t.classList.remove('show'); }, 2500); }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') document.getElementById('sidePanel').classList.remove('open');
+    });
+
+    // ── View Toggle ──
+    var currentView = 'canvas';
+    var canvasNodes = [];
+    var canvasAnimFrame = null;
+    var canvasHoveredNode = null;
+    var canvasTooltip = null;
+    var canvasZoomLevel = 1, canvasPanX = 0, canvasPanY = 0;
+    var canvasInitialized = false;
+
+    function canvasDoZoom(factor) { canvasZoomLevel = Math.max(0.15, Math.min(3, canvasZoomLevel * factor)); }
+    function canvasFitAll() {
+        if (!canvasNodes.length) { canvasZoomLevel = 1; canvasPanX = 0; canvasPanY = 0; return; }
+        var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        canvasNodes.forEach(function(n) { minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x); minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y); });
+        var w = window.innerWidth - 56, h = window.innerHeight - 52;
+        var nw = maxX - minX + 160, nh = maxY - minY + 160;
+        canvasZoomLevel = Math.max(0.15, Math.min(1.2, Math.min(w / nw, h / nh)));
+        canvasPanX = (w / 2 - (minX + maxX) / 2) * canvasZoomLevel;
+        canvasPanY = (h / 2 - (minY + maxY) / 2) * canvasZoomLevel;
+    }
+
+    function switchView(view) {
+        currentView = view;
+        document.getElementById('btnCanvas').className = 'view-toggle-btn' + (view === 'canvas' ? ' active' : '');
+        document.getElementById('btnVisjs').className = 'view-toggle-btn' + (view === 'visjs' ? ' active' : '');
+        document.getElementById('canvasContainer').style.display = view === 'canvas' ? 'block' : 'none';
+        document.getElementById('graphContainer').style.display = view === 'visjs' ? 'block' : 'none';
+        if (view === 'canvas' && graphData) { renderCanvasGraph(); }
+        if (view === 'visjs' && network) setTimeout(function() { network.fit({animation:true}); }, 100);
+        // Update physics panel controls for current view
+        document.getElementById('canvasPhysicsControls').style.display = view === 'canvas' ? 'block' : 'none';
+        document.getElementById('visjsPhysicsControls').style.display = view === 'visjs' ? 'block' : 'none';
+    }
+
+    function renderCanvasGraph() {
+        if (!graphData) return;
+        var canvas = document.getElementById('knowledgeCanvas');
+        var w = window.innerWidth - 56, h = window.innerHeight - 52;
+        var dpr = window.devicePixelRatio || 1;
+        canvas.width = w * dpr; canvas.height = h * dpr;
+        canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+        var ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+        var cx = w / 2, cy = h / 2;
+        var HUB = { topics: '#4ade80', repos: '#a78bfa', skills: '#fbbf24' };
+        var hubDist = Math.min(w, h) * 0.38;
+
+        // Only build nodes once
+        if (!canvasInitialized) {
+            canvasNodes = [];
+            var topics = [], repos = [], skills = [];
+            graphData.nodes.forEach(function(n) {
+                if (n.item_type === 'tag' || n.node_type === 'tag') skills.push(n);
+                else if (n.tags && n.tags.indexOf('graphify') !== -1) repos.push(n);
+                else topics.push(n);
+            });
+            function placeHub(list, hubKey, baseAngle, baseDist) {
+                var spread = Math.PI * 0.5;
+                list.forEach(function(item, i) {
+                    var t = list.length > 1 ? (i / (list.length - 1)) - 0.5 : 0;
+                    var angle = baseAngle + t * spread;
+                    var dist = baseDist + (Math.random() - 0.5) * 40;
+                    canvasNodes.push({ x: cx + Math.cos(angle) * dist, y: cy + Math.sin(angle) * dist,
+                        r: 2.5 + Math.min((item.size || 8) / 4, 3), color: HUB[hubKey], hub: hubKey,
+                        title: item.title || item.label || '', item_type: item.item_type || hubKey, tags: item.tags || [],
+                        orbitAngle: angle, orbitRadius: dist,
+                        orbitSpeed: 0.0002 * (0.5 + Math.random() * 0.5) * (hubKey === 'topics' ? 1 : hubKey === 'repos' ? -1 : 0.5),
+                        _glowPhase: Math.random() * Math.PI * 2 });
+                });
+            }
+            placeHub(topics, 'topics', Math.PI * 0.85, hubDist);
+            placeHub(repos, 'repos', Math.PI * 0.15, hubDist);
+            skills.forEach(function(item, i) {
+                var t = skills.length > 1 ? (i / (skills.length - 1)) - 0.5 : 0;
+                var angle = Math.PI * 0.5 + t * Math.PI * 0.4;
+                var dist = hubDist + Math.random() * 30;
+                canvasNodes.push({ x: cx + Math.cos(angle) * dist, y: cy + Math.sin(angle) * dist,
+                    r: 2 + Math.min((item.size || 5) / 3, 4), color: HUB.skills, hub: 'skills',
+                    title: item.title || item.label || '', item_type: 'skill', tags: item.tags || [],
+                    orbitAngle: angle, orbitRadius: dist, orbitSpeed: 0.00015, _glowPhase: Math.random() * Math.PI * 2 });
+            });
+            canvasFitAll();
+            canvasInitialized = true;
+        } else {
+            // Recenter nodes for new canvas size
+            canvasFitAll();
+        }
+
+        var hubLabels = [
+            { text: 'MY PROJECTS', x: cx + Math.cos(Math.PI * 0.85) * hubDist * 0.7, y: cy + Math.sin(Math.PI * 0.85) * hubDist * 0.7, color: HUB.topics },
+            { text: 'REPOSITORIES', x: cx + Math.cos(Math.PI * 0.15) * hubDist * 0.7, y: cy + Math.sin(Math.PI * 0.15) * hubDist * 0.7, color: HUB.repos },
+            { text: 'SKILLS', x: cx + Math.cos(Math.PI * 0.5) * hubDist * 0.7, y: cy + Math.sin(Math.PI * 0.5) * hubDist * 0.7, color: HUB.skills } ];
+
+        // Create tooltip only once
+        if (!canvasTooltip) {
+            canvasTooltip = document.createElement('div');
+            canvasTooltip.style.cssText = 'position:fixed;pointer-events:none;z-index:200;background:rgba(22,27,34,0.95);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 12px;max-width:240px;opacity:0;transition:opacity 0.12s;font-size:12px;color:#e6edf3;box-shadow:0 4px 12px rgba(0,0,0,0.3)';
+            document.body.appendChild(canvasTooltip);
+        }
+
+        // Cancel previous animation
+        if (canvasAnimFrame) cancelAnimationFrame(canvasAnimFrame);
+
+        // Only bind events once
+        if (!canvasInitialized) {
+            canvas.addEventListener('mousemove', function(e) {
+                var r = canvas.getBoundingClientRect(); var mx = e.clientX - r.left, my = e.clientY - r.top;
+                var found = null;
+                for (var i = canvasNodes.length - 1; i >= 0; i--) {
+                    var nd = canvasNodes[i]; var dx = mx - nd.x, dy = my - nd.y;
+                    if (dx * dx + dy * dy < 225) { found = nd; break; }
+                }
+                if (found && found.title) {
+                    canvasHoveredNode = found; canvas.style.cursor = 'pointer';
+                    var tags = (found.tags || []).slice(0, 4).map(function(t) { return '<span style="display:inline-block;padding:1px 5px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:6px;font-size:9px;color:#a78bfa;margin-right:3px">#' + t + '</span>'; }).join('');
+                    canvasTooltip.innerHTML = '<div style="font-weight:600;margin-bottom:3px">' + esc(found.title.substring(0, 40)) + '</div>' + '<div style="font-size:10px;color:#7d8590">' + esc(found.item_type) + '</div>' + (tags ? '<div style="margin-top:4px">' + tags + '</div>' : '');
+                    canvasTooltip.style.opacity = '1';
+                    var tx = e.clientX + 14; if (tx + 250 > window.innerWidth) tx = e.clientX - 254;
+                    canvasTooltip.style.left = tx + 'px'; canvasTooltip.style.top = (e.clientY - 10) + 'px';
+                } else { canvasHoveredNode = null; canvas.style.cursor = 'default'; canvasTooltip.style.opacity = '0'; }
+            });
+            canvas.addEventListener('mouseleave', function() { canvasHoveredNode = null; canvasTooltip.style.opacity = '0'; });
+            canvas.addEventListener('click', function() {
+                if (canvasHoveredNode) {
+                    var nd = graphData.nodes.find(function(n) { return (n.title === canvasHoveredNode.title || n.label === canvasHoveredNode.title); });
+                    if (nd) showNodeDetail(nd);
+                }
+            });
+            canvas.addEventListener('wheel', function(e) { e.preventDefault(); canvasDoZoom(e.deltaY > 0 ? 0.92 : 1.08); }, {passive:false});
+        }
+
+        function draw() {
+            var time = performance.now() * 0.001;
+            ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, w, h);
+            ctx.save();
+            ctx.translate(w / 2 + canvasPanX, h / 2 + canvasPanY);
+            ctx.scale(canvasZoomLevel, canvasZoomLevel);
+            ctx.translate(-w / 2, -h / 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.012)';
+            for (var gx = 0; gx < w; gx += 60) for (var gy = 0; gy < h; gy += 60) {
+                ctx.beginPath(); ctx.arc(gx + Math.sin((gx + time * 0.1) * 0.012), gy + Math.cos((gy + time * 0.1) * 0.012), 0.4, 0, Math.PI * 2); ctx.fill(); }
+            ctx.lineWidth = 0.3;
+            for (var i = 0; i < canvasNodes.length; i++) for (var j = i + 1; j < canvasNodes.length; j++) {
+                if (canvasNodes[i].hub !== canvasNodes[j].hub) continue;
+                var dx = canvasNodes[j].x - canvasNodes[i].x, dy = canvasNodes[j].y - canvasNodes[i].y;
+                if (dx * dx + dy * dy < 2500) { ctx.strokeStyle = canvasNodes[i].color + '12'; ctx.beginPath(); ctx.moveTo(canvasNodes[i].x, canvasNodes[i].y); ctx.lineTo(canvasNodes[j].x, canvasNodes[j].y); ctx.stroke(); } }
+            var corePulse = 1 + Math.sin(time * 1.5) * 0.08;
+            var glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 28 * corePulse);
+            glow.addColorStop(0, 'rgba(251,191,36,0.25)'); glow.addColorStop(1, 'rgba(251,191,36,0)');
+            ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, 28 * corePulse, 0, Math.PI * 2); ctx.fill();
+            var cg = ctx.createRadialGradient(cx - 4, cy - 6, 2, cx, cy, 22);
+            cg.addColorStop(0, '#fde68a'); cg.addColorStop(0.4, '#fbbf24'); cg.addColorStop(1, '#b45309');
+            ctx.fillStyle = cg; ctx.beginPath();
+            ctx.moveTo(cx, cy - 22); ctx.lineTo(cx + 15, cy - 4); ctx.lineTo(cx + 11, cy + 13); ctx.lineTo(cx - 11, cy + 13); ctx.lineTo(cx - 15, cy - 4); ctx.closePath(); ctx.fill();
+            var sp = ctx.createRadialGradient(cx - 5, cy - 8, 1, cx, cy, 18);
+            sp.addColorStop(0, 'rgba(255,255,255,0.35)'); sp.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = sp; ctx.beginPath(); ctx.arc(cx, cy, 18, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = 'rgba(251,191,36,0.3)'; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.arc(cx, cy, 28, 0, Math.PI * 2); ctx.stroke();
+            ctx.font = '500 11px Inter, sans-serif'; ctx.fillStyle = 'rgba(251,191,36,0.7)';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText('Knowledge Core', cx, cy + 32);
+            canvasNodes.forEach(function(n) { n.orbitAngle += n.orbitSpeed * gRotSpeed; n.x = cx + Math.cos(n.orbitAngle) * n.orbitRadius; n.y = cy + Math.sin(n.orbitAngle) * n.orbitRadius; });
+            canvasNodes.forEach(function(n) {
+                var isH = n === canvasHoveredNode; var pulse = 1 + Math.sin(time * 1.2 + n._glowPhase) * 0.1;
+                var r = (isH ? n.r * 2.2 : n.r) * pulse; var glowR = r * 3.5 * gGlow;
+                var ng = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, glowR);
+                var ga = Math.min(255, Math.round(0x25 * gGlow)).toString(16).padStart(2,'0'); ng.addColorStop(0, n.color + (isH ? '50' : ga)); ng.addColorStop(1, n.color + '00');
+                ctx.fillStyle = ng; ctx.beginPath(); ctx.arc(n.x, n.y, glowR, 0, Math.PI * 2); ctx.fill();
+                ctx.globalAlpha = isH ? 1 : 0.85; ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2); ctx.fillStyle = n.color; ctx.fill();
+                if (isH) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke(); } ctx.globalAlpha = 1;
+            });
+            hubLabels.forEach(function(l) { ctx.font = 'bold 16px Inter, sans-serif'; ctx.fillStyle = l.color; ctx.globalAlpha = 0.6; ctx.textAlign = 'center'; ctx.fillText(l.text, l.x, l.y); ctx.globalAlpha = 1; });
+            if (canvasHoveredNode && canvasHoveredNode.title) {
+                var label = canvasHoveredNode.title.substring(0, 30); ctx.font = '500 10px Inter, sans-serif';
+                var tw = ctx.measureText(label).width + 12; var lx = canvasHoveredNode.x - tw / 2, ly = canvasHoveredNode.y - canvasHoveredNode.r * 2.2 - 20;
+                ctx.fillStyle = 'rgba(13,17,23,0.9)';
+                ctx.beginPath(); ctx.moveTo(lx + 4, ly); ctx.lineTo(lx + tw - 4, ly); ctx.quadraticCurveTo(lx + tw, ly, lx + tw, ly + 4);
+                ctx.lineTo(lx + tw, ly + 14); ctx.quadraticCurveTo(lx + tw, ly + 18, lx + tw - 4, ly + 18);
+                ctx.lineTo(lx + 4, ly + 18); ctx.quadraticCurveTo(lx, ly + 18, lx, ly + 14);
+                ctx.lineTo(lx, ly + 4); ctx.quadraticCurveTo(lx, ly, lx + 4, ly); ctx.closePath(); ctx.fill();
+                ctx.fillStyle = '#e6edf3'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(label, canvasHoveredNode.x, ly + 9);
+            }
+            ctx.restore();
+            canvasAnimFrame = requestAnimationFrame(draw);
+        }
+        draw();
+    }
+
+    // ── WebSocket ──
+    var socket = null;
+    try {
+        socket = io();
+        socket.on('connect', function() {
+            socket.emit('identify', { name: localStorage.getItem('brain_user_name') || 'User' });
+            socket.emit('navigate', { page: '/graph' });
+        });
+        socket.on('item_created', function(item) { showToast('New: ' + item.title + ' — refresh to see'); });
+        socket.on('item_updated', function(item) { showToast(item.title + ' updated — refresh to see'); });
+        socket.on('item_deleted', function() { showToast('Item removed — refresh to see'); });
+    } catch(e) { console.warn('WebSocket unavailable:', e); }
+
+    // ── Chat ──
+    var chatHistory = JSON.parse(localStorage.getItem('brain_chat_history') || '[]'); if (!Array.isArray(chatHistory)) chatHistory = [];
+    function toggleChat() { var p = document.getElementById('chatPanel'); p.style.right = p.style.right === '0px' ? '-400px' : '0px'; }
+    async function sendChat() {
+        var input = document.getElementById('chatInput'), msg = input.value.trim();
+        if (!msg) return; input.value = '';
+        var ml = document.getElementById('chatMessages');
+        ml.innerHTML += '<div style="font-size:13px;padding:8px 12px;border-radius:8px;max-width:90%;background:rgba(139,92,246,0.15);align-self:flex-end;border:1px solid rgba(139,92,246,0.2)">' + esc(msg) + '</div>';
+        var tid = 't-' + Date.now();
+        ml.innerHTML += '<div style="font-size:13px;padding:8px 12px;border-radius:8px;max-width:90%;background:rgba(255,255,255,0.03);align-self:flex-start;border:1px solid var(--border)" id="' + tid + '">Thinking...</div>';
+        ml.scrollTop = ml.scrollHeight;
+        try {
+            var r = await fetch(API_URL + '/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey }, body: JSON.stringify({ message: msg, history: chatHistory }) });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            var data = await r.json();
+            document.getElementById(tid).innerHTML = esc(data.reply);
+            chatHistory.push({ role: 'user', parts: [msg] }); chatHistory.push({ role: 'model', parts: [data.reply] });
+            if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
+            localStorage.setItem('brain_chat_history', JSON.stringify(chatHistory));
+        } catch(e) { document.getElementById(tid).innerHTML = '<span style="color:#f87171">⚠️ ' + esc(e.message) + '</span>'; }
+        ml.scrollTop = ml.scrollHeight;
+    }
+
+    // ── Init ──
+    startTimeClock();
+
+    // Show loading state
+    var gc = document.getElementById('graphContainer');
+    gc.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:12px;color:#7d8590"><div style="font-size:32px">🧠</div><div style="font-size:14px;font-weight:500">Loading Knowledge Graph...</div><div id="loadStatus" style="font-size:11px">Checking connection...</div></div>';
+
+    // Check auth status first, then load
+    fetch(API_URL.replace('/api/v1', '') + '/api/v1/auth/status')
+        .then(function(r) { return r.json(); })
+        .then(function(status) {
+            if (status.auth_enabled && !apiKey) { showAuth(); return; }
+            if (apiKey) {
+                return fetch(API_URL + '/stats', { headers: { 'X-API-Key': apiKey } })
+                    .then(function(res) {
+                        if (!res.ok) { apiKey = ''; localStorage.removeItem('brain_api_key'); showAuth(); return; }
+                        loadGraph();
+                    });
+            }
+            loadGraph();
+        })
+        .catch(function() { showAuth(); });
+
+    // Safety: re-render canvas after full page load to ensure correct dimensions
+    window.addEventListener('load', function() {
+        if (currentView === 'canvas' && graphData) {
+            canvasInitialized = false;
+            renderCanvasGraph();
+        }
+    });
+    </script>
+</body>
+</html>

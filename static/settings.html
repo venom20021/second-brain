@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings — Second Brain</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#0d1117;--surface:#161b22;--surface-2:#1c2333;--border:rgba(255,255,255,0.06);--text:#e6edf3;--text-dim:#7d8590;--accent:#8b5cf6;--sidebar-w:56px;--topbar-h:52px;--success:#4ade80;--danger:#f87171;--warning:#fbbf24}
+        body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow-y:auto}
+        .sidebar{position:fixed;top:0;left:0;width:var(--sidebar-w);height:100%;background:rgba(13,17,23,0.95);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:12px 0;z-index:100}
+        .sidebar-top{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1}
+        .sidebar-bottom{display:flex;flex-direction:column;align-items:center;gap:4px}
+        .sb-logo{width:32px;height:32px;margin-bottom:12px;background:linear-gradient(135deg,#8b5cf6,#a78bfa,#c4b5fd);clip-path:polygon(50% 0%,85% 25%,85% 75%,50% 100%,15% 75%,15% 25%)}
+        .sb-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-dim);transition:all 0.2s;border:none;background:none;position:relative;text-decoration:none}
+        .sb-icon:hover{color:var(--text);background:rgba(255,255,255,0.04)}
+        .sb-icon.active{color:var(--accent)}
+        .sb-icon.active::before{content:'';position:absolute;left:-12px;top:50%;transform:translateY(-50%);width:3px;height:18px;background:var(--accent);border-radius:0 3px 3px 0}
+        .sb-divider{width:24px;height:1px;background:var(--border);margin:6px 0}
+        .sb-profile{width:36px;height:36px;border-radius:50%;position:relative;cursor:pointer;margin-top:8px}
+        .sb-profile::before{content:'';position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(from 0deg,#8b5cf6,#a78bfa,#8b5cf6);z-index:-1;animation:spin 4s linear infinite}
+        .sb-profile-inner{width:100%;height:100%;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:14px}
+        .sb-profile-label{font-size:8px;font-weight:700;color:var(--accent);letter-spacing:0.08em;text-transform:uppercase;margin-top:4px;text-align:center}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .topbar{position:fixed;top:0;left:var(--sidebar-w);right:0;height:var(--topbar-h);background:rgba(13,17,23,0.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;z-index:90}
+        .topbar-tabs{display:flex;gap:24px;margin-right:24px}
+        .tab-btn{font-size:14px;font-weight:600;color:var(--text-dim);cursor:pointer;background:none;border:none;padding:6px 0;position:relative;text-decoration:none}
+        .tab-btn.active{color:var(--text)}
+        .tab-btn.active::after{content:'';position:absolute;bottom:-2px;left:0;right:0;height:2px;background:var(--text);border-radius:1px}
+        
+        .search-box { flex: 1; max-width: 320px; position: relative; }
+        .search-box input { width: 100%; padding: 7px 12px 7px 32px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; outline: none; }
+        .search-box input:focus { border-color: rgba(139,92,246,0.4); }
+        .search-box input::placeholder { color: var(--text-dim); }
+        .search-box svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-dim); }
+        .topbar-right{margin-left:auto;display:flex;align-items:center;gap:16px}
+        .topbar-time{font-size:12px;color:var(--text-dim);font-weight:500;letter-spacing:0.04em}
+        .main{margin-left:var(--sidebar-w);margin-top:var(--topbar-h);padding:24px 28px;max-width:800px}
+        .page-header{margin-bottom:28px}
+        .page-header h1{font-size:24px;font-weight:700;margin-bottom:4px}
+        .page-header p{font-size:13px;color:var(--text-dim)}
+        .section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+        .section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+        .section-title{font-size:15px;font-weight:600}
+        .section-desc{font-size:12px;color:var(--text-dim);margin-top:2px}
+        .field{margin-bottom:14px}
+        .field label{display:block;font-size:12px;font-weight:500;color:var(--text-dim);margin-bottom:6px}
+        .field input,.field textarea,.field select{width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;font-family:inherit;transition:border-color 0.15s}
+        .field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent)}
+        .field textarea{min-height:80px;resize:vertical}
+        .field .hint{font-size:11px;color:var(--text-dim);margin-top:4px}
+        .btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all 0.15s}
+        .btn-primary{background:var(--accent);color:white}
+        .btn-primary:hover{background:#7c3aed}
+        .btn-danger{background:rgba(248,113,113,0.1);color:var(--danger);border:1px solid rgba(248,113,113,0.2)}
+        .btn-danger:hover{background:rgba(248,113,113,0.2)}
+        .btn-secondary{background:rgba(255,255,255,0.04);color:var(--text-dim);border:1px solid var(--border)}
+        .btn-secondary:hover{background:rgba(255,255,255,0.08);color:var(--text)}
+        .btn-sm{padding:5px 10px;font-size:11px}
+        .key-list{display:flex;flex-direction:column;gap:8px}
+        .key-item{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px}
+        .key-info{display:flex;flex-direction:column;gap:2px}
+        .key-name{font-size:13px;font-weight:500}
+        .key-preview{font-size:11px;color:var(--text-dim);font-family:'Fira Code',monospace}
+        .key-created{font-size:10px;color:var(--text-dim)}
+        .key-actions{display:flex;gap:6px}
+        .status-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:500}
+        .status-ok{background:rgba(74,222,128,0.1);color:var(--success)}
+        .status-warn{background:rgba(251,191,36,0.1);color:var(--warning)}
+        .status-error{background:rgba(248,113,113,0.1);color:var(--danger)}
+        .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+        .stat-card{background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}
+        .stat-value{font-size:22px;font-weight:700;color:var(--accent)}
+        .stat-label{font-size:11px;color:var(--text-dim);margin-top:2px}
+        .toast{position:fixed;top:64px;left:50%;transform:translateX(-50%) translateY(-16px);padding:7px 14px;background:rgba(22,27,34,0.95);border:1px solid var(--border);border-radius:8px;font-size:12px;z-index:300;opacity:0;transition:all 0.2s;pointer-events:none}
+        .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+        .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;display:none;align-items:center;justify-content:center}
+        .modal-overlay.open{display:flex}
+        .modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:400px}
+        .modal h3{font-size:16px;font-weight:600;margin-bottom:12px}
+        .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+        .new-key-display{background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:'Fira Code',monospace;font-size:13px;color:var(--success);word-break:break-all;margin:12px 0;position:relative}
+        .copy-btn{position:absolute;top:8px;right:8px;background:rgba(255,255,255,0.06);border:none;border-radius:4px;padding:4px 8px;color:var(--text-dim);font-size:11px;cursor:pointer}
+    
+        .chat-panel { position: fixed; top: var(--topbar-h); right: -400px; width: 400px; bottom: 0; background: rgba(13,17,23,0.95); backdrop-filter: blur(16px); border-left: 1px solid var(--border); z-index: 90; display: flex; flex-direction: column; transition: right 0.3s; }
+        .chat-panel.open { right: 0; }
+        .chat-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .chat-header h3 { font-size: 13px; font-weight: 600; }
+        .chat-close { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+        .chat-msg { font-size: 13px; line-height: 1.5; padding: 8px 12px; border-radius: 8px; max-width: 90%; }
+        .chat-msg.user { background: rgba(139,92,246,0.15); align-self: flex-end; border: 1px solid rgba(139,92,246,0.2); }
+        .chat-msg.assistant { background: rgba(255,255,255,0.03); align-self: flex-start; border: 1px solid var(--border); }
+        .chat-input-area { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+        .chat-input-area input { flex: 1; padding: 8px 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; outline: none; }
+        .chat-input-area button { padding: 8px 14px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-top">
+            <a href="/" class="sb-logo" style="text-decoration:none" title="Second Brain"></a>
+            <a href="/" class="sb-icon" aria-label="Dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></a>
+            <a href="/hub" class="sb-icon" aria-label="Hub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></a>
+            <a href="/knowledge" class="sb-icon" aria-label="Knowledge Web"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><line x1="8.5" y1="6" x2="15.5" y2="6"/><line x1="6" y1="8.5" x2="6" y2="15.5"/></svg></a>
+            <a href="/graph" class="sb-icon" aria-label="Graph View"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><line x1="8.5" y1="6" x2="15.5" y2="6"/><line x1="6" y1="8.5" x2="6" y2="15.5"/><line x1="18" y1="8.5" x2="18" y2="15.5"/><line x1="8.5" y1="18" x2="15.5" y2="18"/></svg></a>
+            <a href="/calendar" class="sb-icon" aria-label="Calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><rect x="7" y="14" width="3" height="3" rx="0.5"/></svg></a>
+            <a href="/skills" class="sb-icon" aria-label="Skills"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></a>
+            <a href="/browser" class="sb-icon" aria-label="Browser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></a>
+            <a href="/colleagues" class="sb-icon" aria-label="Colleagues"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></a>
+            <div class="sb-divider"></div>
+            <a href="/settings" class="sb-icon active" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></a>
+        </div>
+        <div class="sidebar-bottom">
+            <div class="sb-profile" title="AI Assistant"><div class="sb-profile-inner">🔮</div></div>
+            <div class="sb-profile-label">AI<br>ASSISTANT</div>
+        </div>
+    </nav>
+
+    <div class="topbar">
+        <div class="topbar-tabs">
+            <a href="/" class="tab-btn">Home</a>
+            <a href="/knowledge" class="tab-btn">Knowledge Web</a>
+            <a href="/graph" class="tab-btn">Graph View</a>
+            <a href="/hub" class="tab-btn">Personal Hub</a>
+            <a href="/settings" class="tab-btn active">Settings</a>
+        </div>
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="searchInput" placeholder="Search knowledge web..." aria-label="Search" oninput="handleSearch(this.value)">
+        </div>
+        <div class="topbar-right"><span class="topbar-time" id="topTime"></span>
+                        <button onclick="toggleChat()" title="AI Chat" style="background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-dim);cursor:pointer;font-size:15px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;transition:all 0.15s">💬</button></div>
+    </div>
+
+    <div class="main">
+        <div class="page-header">
+            <h1>Settings</h1>
+            <p>Manage API keys, connections, and system configuration</p>
+        </div>
+
+        <!-- System Status -->
+        <div class="section">
+            <div class="section-header">
+                <div><div class="section-title">System Status</div><div class="section-desc">Current health and statistics</div></div>
+                <span class="status-badge status-ok" id="statusBadge">● Connected</span>
+            </div>
+            <div class="stat-grid" id="statGrid">
+                <div class="stat-card"><div class="stat-value" id="statItems">-</div><div class="stat-label">Total Items</div></div>
+                <div class="stat-card"><div class="stat-value" id="statKeys">-</div><div class="stat-label">API Keys</div></div>
+                <div class="stat-card"><div class="stat-value" id="statEmbedded">-</div><div class="stat-label">Embedded</div></div>
+            </div>
+        </div>
+
+        <!-- API Keys -->
+        <div class="section">
+            <div class="section-header">
+                <div><div class="section-title">API Keys</div><div class="section-desc">Manage keys for BARQ and other integrations</div></div>
+                <button class="btn btn-primary btn-sm" onclick="openCreateModal()">+ New Key</button>
+            </div>
+            <div class="key-list" id="keyList">Loading...</div>
+        </div>
+
+        <!-- Gemini Configuration -->
+        <div class="section">
+            <div class="section-header">
+                <div><div class="section-title">Gemini AI</div><div class="section-desc">Configure Google Gemini for chat responses</div></div>
+                <span class="status-badge" id="geminiStatus">● Not configured</span>
+            </div>
+            <div class="field">
+                <label>Gemini API Key</label>
+                <input type="password" id="geminiKey" placeholder="AIza...">
+                <div class="hint">Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent)">aistudio.google.com/apikey</a></div>
+            </div>
+            <button class="btn btn-primary" onclick="saveGeminiKey()">Save Gemini Key</button>
+        </div>
+
+        <!-- BARQ Integration -->
+        <div class="section">
+            <div class="section-header">
+                <div><div class="section-title">BARQ Integration</div><div class="section-desc">Connect your BARQ AI assistant</div></div>
+            </div>
+            <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;line-height:1.6;color:var(--text-dim)">
+                <div style="margin-bottom:8px;font-weight:500;color:var(--text)">BARQ can connect via the REST API:</div>
+                <code style="display:block;background:rgba(0,0,0,0.3);padding:8px;border-radius:4px;font-size:12px;color:#4ade80;margin-bottom:8px">Base URL: http://localhost:8000/api/v1<br>Auth: X-API-Key header</code>
+                <div style="font-size:12px">Use the repos endpoint to discover tools: <code style="color:var(--accent)">GET /api/v1/repos?skill=python</code></div>
+            </div>
+        </div>
+
+        <!-- Auto-Backup -->
+        <div class="section">
+            <div class="section-header">
+                <div><div class="section-title">🔄 Auto-Backup</div><div class="section-desc">Periodically export your brain to a cloud-synced folder</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+                <!-- Config -->
+                <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;padding:16px">
+                    <div style="font-size:14px;font-weight:600;margin-bottom:12px">⚙️ Schedule</div>
+                    <div class="field">
+                        <label>Backup Directory</label>
+                        <input type="text" id="backupDir" placeholder="~/SecondBrain_Backups">
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:4px">💡 Point this to a cloud-synced folder (Dropbox, iCloud, Google Drive, OneDrive)</div>
+                    </div>
+                    <div class="field">
+                        <label>Interval</label>
+                        <select id="backupInterval">
+                            <option value="1">Every 1 hour</option>
+                            <option value="6">Every 6 hours</option>
+                            <option value="12">Every 12 hours</option>
+                            <option value="24">Every 24 hours</option>
+                            <option value="168">Weekly</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>Max Backups (rotation)</label>
+                        <input type="number" id="backupMax" min="1" max="100" value="10">
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Old backups are deleted when limit is reached</div>
+                    </div>
+                    <div class="field">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                            <input type="checkbox" id="backupEncrypt" style="width:auto;margin:0" onchange="document.getElementById('passwordField').style.display=this.checked?'block':'none'">
+                            🔐 Encrypt backups (AES-128 + HMAC)
+                        </label>
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Password-protect your backups — only you can restore them</div>
+                    </div>
+                    <div class="field" id="passwordField" style="display:none">
+                        <label>Encryption Password</label>
+                        <input type="password" id="backupPassword" placeholder="Enter a strong password">
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:4px">⚠️ Remember this password — there is no recovery if lost</div>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:12px">
+                        <button class="btn btn-primary" onclick="saveAutobackup()">💾 Save Config</button>
+                        <button class="btn btn-secondary" onclick="toggleAutobackup()" id="backupToggle">▶️ Enable</button>
+                    </div>
+                </div>
+                <!-- Status -->
+                <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;padding:16px">
+                    <div style="font-size:14px;font-weight:600;margin-bottom:12px">📊 Status</div>
+                    <div id="backupStatusInfo" style="font-size:12px;color:var(--text-dim)">Loading...</div>
+                    <div style="margin-top:12px">
+                        <button class="btn btn-primary" onclick="runBackupNow()" style="width:100%">⚡ Backup Now</button>
+                    </div>
+                    <div id="backupRunStatus" style="font-size:11px;color:var(--text-dim);margin-top:8px"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GitHub Sync -->
+        <div class="section">
+            <div class="section-header">
+                <div><div class="section-title">🔄 GitHub Sync</div><div class="section-desc">Push brain backups to a private GitHub repo for version control</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+                <!-- Config -->
+                <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;padding:16px">
+                    <div style="font-size:14px;font-weight:600;margin-bottom:12px">⚙️ Configuration</div>
+                    <div class="field">
+                        <label>Repository</label>
+                        <input type="text" id="ghRepo" placeholder="username/brain-backup">
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Create a <strong>private</strong> repo on GitHub first</div>
+                    </div>
+                    <div class="field">
+                        <label>Personal Access Token</label>
+                        <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxx">
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Generate at <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--accent)">github.com/settings/tokens</a> with <code>repo</code> scope</div>
+                    </div>
+                    <div class="field">
+                        <label>File Path in Repo</label>
+                        <input type="text" id="ghPath" value="brain.md" placeholder="brain.md">
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:12px">
+                        <button class="btn btn-primary" onclick="saveGithubSync()">💾 Save</button>
+                        <button class="btn btn-secondary" onclick="testGithubSync()">🔌 Test Connection</button>
+                    </div>
+                    <div id="ghTestStatus" style="font-size:11px;color:var(--text-dim);margin-top:8px"></div>
+                </div>
+                <!-- Status -->
+                <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;padding:16px">
+                    <div style="font-size:14px;font-weight:600;margin-bottom:12px">📊 Status</div>
+                    <div id="ghStatusInfo" style="font-size:12px;color:var(--text-dim)">Loading...</div>
+                    <div style="margin-top:12px">
+                        <button class="btn btn-primary" onclick="runGithubSync()" style="width:100%">⚡ Sync Now</button>
+                    </div>
+                    <div class="field" style="margin-top:12px;margin-bottom:0">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">
+                            <input type="checkbox" id="ghAutoSync" style="width:auto;margin:0" onchange="saveGithubAutoSync()">
+                            Auto-sync after each backup
+                        </label>
+                    </div>
+                    <div id="ghRunStatus" style="font-size:11px;color:var(--text-dim);margin-top:8px"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export / Import -->
+        <div class="section">
+            <div class="section-header">
+                <div><div class="section-title">Export / Import</div><div class="section-desc">Backup your brain or migrate data between systems</div></div>
+            </div>
+
+            <!-- Portable Master Brain File -->
+            <div style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:10px;padding:16px;margin-bottom:16px">
+                <div style="font-size:14px;font-weight:600;margin-bottom:4px">🧠 Master Brain File</div>
+                <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">A single portable .md file with everything — switch systems by just importing this file</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div>
+                        <div style="font-size:12px;font-weight:500;color:var(--accent);margin-bottom:6px">📤 Export</div>
+                        <button class="btn btn-primary" onclick="exportBrain()" style="width:100%">🧠 Download Master Brain .md</button>
+                        <div id="exportBrainStatus" style="font-size:11px;color:var(--text-dim);margin-top:6px"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:12px;font-weight:500;color:var(--accent);margin-bottom:6px">📥 Import</div>
+                        <label class="btn btn-secondary" style="width:100%;text-align:center;cursor:pointer;display:block">
+                            📥 Import Master Brain .md
+                            <input type="file" accept=".md" style="display:none" onchange="importBrain(this)">
+                        </label>
+                        <div id="importBrainStatus" style="font-size:11px;color:var(--text-dim);margin-top:6px"></div>
+                    </div>
+                </div>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:8px;background:rgba(0,0,0,0.2);padding:8px;border-radius:6px">
+                    💡 <strong>How it works:</strong> Export creates a human-readable .md file. On a new system, clone the repo, run it, and import this file — all your data is restored.
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                <!-- Full Database Backup -->
+                <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;padding:16px">
+                    <div style="font-size:14px;font-weight:600;margin-bottom:4px">💾 Full Backup</div>
+                    <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Complete SQLite backup — includes embeddings, API keys, everything</div>
+                    <div style="display:flex;flex-direction:column;gap:8px">
+                        <button class="btn btn-primary" onclick="exportBackup()" style="width:100%">💾 Download Full Backup (.db)</button>
+                        <label class="btn btn-danger" style="width:100%;text-align:center;cursor:pointer;display:block">
+                            ⚠️ Restore Full Backup
+                            <input type="file" accept=".db" style="display:none" onchange="importBackup(this)">
+                        </label>
+                    </div>
+                    <div id="backupStatus" style="font-size:11px;color:var(--text-dim);margin-top:8px"></div>
+                </div>
+                <!-- JSON/Markdown Export -->
+                <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;padding:16px">
+                    <div style="font-size:14px;font-weight:600;margin-bottom:4px">📦 Other Formats</div>
+                    <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">JSON or Markdown ZIP export</div>
+                    <div style="display:flex;flex-direction:column;gap:8px">
+                        <button class="btn btn-primary" onclick="exportJSON()" style="width:100%">📦 Export as JSON</button>
+                        <button class="btn btn-secondary" onclick="exportMarkdown()" style="width:100%">📝 Export as Markdown ZIP</button>
+                    </div>
+                    <div id="exportStatus" style="font-size:11px;color:var(--text-dim);margin-top:8px"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="section" style="border-color:rgba(248,113,113,0.2)">
+            <div class="section-header">
+                <div><div class="section-title" style="color:var(--danger)">Danger Zone</div><div class="section-desc">Irreversible actions</div></div>
+            </div>
+            <div style="display:flex;gap:8px">
+                <button class="btn btn-danger" onclick="reindexAll()">🔄 Reindex Embeddings</button>
+                <button class="btn btn-danger" onclick="if(confirm('Delete ALL data? This cannot be undone.'))showToast('Contact admin to reset')">🗑️ Reset Database</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Key Modal -->
+    <div class="modal-overlay" id="createModal">
+        <div class="modal">
+            <h3>Create API Key</h3>
+            <div class="field">
+                <label>Key Name</label>
+                <input type="text" id="newKeyName" placeholder="e.g., barq, mobile-app, ci-pipeline">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeCreateModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="createKey()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Key Display Modal -->
+    <div class="modal-overlay" id="keyModal">
+        <div class="modal">
+            <h3>🔑 New API Key Created</h3>
+            <p style="font-size:13px;color:var(--text-dim);margin-bottom:8px">Copy this key now — it won't be shown again.</p>
+            <div class="new-key-display" id="newKeyDisplay">
+                <button class="copy-btn" onclick="copyKey()">Copy</button>
+                <span id="newKeyValue"></span>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="closeKeyModal()">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-header">
+            <h3>💬 AI Chat</h3>
+            <button class="chat-close" onclick="toggleChat()">&times;</button>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div style="text-align:center;color:var(--text-dim);padding:20px;font-size:12px;">
+                Ask me anything about your knowledge base.<br>I search your memories and use Gemini to answer.
+            </div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="chatInput" placeholder="Ask about your memories..." onkeydown="if(event.key==='Enter')sendChat()">
+            <button onclick="sendChat()">Send</button>
+        </div>
+    </div>
+
+    <script>
+    const API_URL=window.location.origin+'/api/v1';
+    let apiKey=localStorage.getItem('brain_api_key')||'';
+    let keys=[];
+
+        // ── Search ──
+    var searchTimer;
+    function handleSearch(q) {
+        clearTimeout(searchTimer);
+        if (!q.trim()) return;
+        searchTimer = setTimeout(function() {
+            window.location.href = '/browser?search=' + encodeURIComponent(q);
+        }, 800);
+    }
+
+    function startTimeClock(){const u=()=>{const n=new Date(),mo=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];document.getElementById('topTime').textContent=n.getDate().toString().padStart(2,'0')+' '+mo[n.getMonth()]+' '+n.getFullYear()+' | '+n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0')+' PST'};u();setInterval(u,30000)}
+
+    async function apiFetch(path,opts={}){
+        const h={'Content-Type':'application/json'};
+        if(apiKey)h['X-API-Key']=apiKey;
+        const res=await fetch(API_URL+path,{headers:h,...opts,body:opts.body?JSON.stringify(opts.body):undefined});
+        if(!res.ok)throw new Error('HTTP '+res.status);
+        return res.json();
+    }
+
+    async function loadSettings(){
+        try{
+            const[stats,authStatus]=await Promise.all([
+                apiFetch('/stats'),
+                fetch(API_URL.replace('/api/v1','')+'/api/v1/auth/status').then(r=>r.json())
+            ]);
+            document.getElementById('statItems').textContent=stats.total_items||0;
+            document.getElementById('statEmbedded').textContent=stats.embedded_items||0;
+            document.getElementById('statKeys').textContent=authStatus.key_count||0;
+            document.getElementById('statusBadge').className='status-badge status-ok';
+            document.getElementById('statusBadge').textContent='● Connected';
+            await loadKeys();
+        }catch(e){
+            document.getElementById('statusBadge').className='status-badge status-error';
+            document.getElementById('statusBadge').textContent='● Disconnected';
+        }
+    }
+
+    async function loadKeys(){
+        try{
+            const res=await apiFetch('/auth/keys');
+            keys=res.keys||[];
+            renderKeys();
+        }catch(e){}
+    }
+
+    function renderKeys(){
+        const list=document.getElementById('keyList');
+        if(!keys.length){list.innerHTML='<div style="color:var(--text-dim);font-size:13px;padding:12px">No API keys yet. Create one to get started.</div>';return;}
+        list.innerHTML=keys.map(k=>
+            '<div class="key-item">'+
+                '<div class="key-info">'+
+                    '<div class="key-name">'+esc(k.name||'Unnamed')+'</div>'+
+                    '<div class="key-preview">'+esc(k.preview||'****')+'</div>'+
+                    '<div class="key-created">Created: '+esc(k.created||'unknown')+'</div>'+
+                '</div>'+
+                '<div class="key-actions">'+
+                    '<button class="btn btn-danger btn-sm" onclick="revokeKey('+k.id+')">Revoke</button>'+
+                '</div>'+
+            '</div>'
+        ).join('');
+    }
+
+    function openCreateModal(){document.getElementById('createModal').classList.add('open');document.getElementById('newKeyName').focus()}
+    function closeCreateModal(){document.getElementById('createModal').classList.remove('open');document.getElementById('newKeyName').value=''}
+
+    async function createKey(){
+        const name=document.getElementById('newKeyName').value.trim()||'unnamed';
+        try{
+            const res=await apiFetch('/auth/keys',{method:'POST',body:{name:name}});
+            closeCreateModal();
+            document.getElementById('newKeyValue').textContent=res.key||res.api_key||'Key created';
+            document.getElementById('keyModal').classList.add('open');
+            await loadKeys();
+            showToast('Key created successfully');
+        }catch(e){showToast('Failed: '+e.message)}
+    }
+
+    function closeKeyModal(){document.getElementById('keyModal').classList.remove('open')}
+
+    async function revokeKey(id){
+        if(!confirm('Revoke this key? Any client using it will lose access.'))return;
+        try{
+            await apiFetch('/auth/keys/'+id,{method:'DELETE'});
+            await loadKeys();
+            showToast('Key revoked');
+        }catch(e){showToast('Failed: '+e.message)}
+    }
+
+    function copyKey(){
+        const val=document.getElementById('newKeyValue').textContent;
+        navigator.clipboard.writeText(val);
+        showToast('Copied to clipboard');
+    }
+
+    function saveGeminiKey(){
+        const key=document.getElementById('geminiKey').value.trim();
+        if(!key){showToast('Enter a Gemini API key');return;}
+        localStorage.setItem('gemini_api_key',key);
+        document.getElementById('geminiStatus').className='status-badge status-ok';
+        document.getElementById('geminiStatus').textContent='● Configured';
+        showToast('Gemini key saved (local storage)');
+    }
+
+    async function reindexAll(){
+        try{
+            showToast('Reindexing...');
+            const res=await apiFetch('/reindex',{method:'POST'});
+            showToast('Reindexed '+res.reindexed+' items');
+        }catch(e){showToast('Failed: '+e.message)}
+    }
+
+    // ── GitHub Sync ─────────────────────────────────────────────────────
+
+    async function loadGithubSync(){
+        try{
+            const res=await fetch(API_URL+'/github-sync',{headers:{'X-API-Key':apiKey}});
+            const cfg=await res.json();
+            document.getElementById('ghRepo').value=cfg.repo||'';
+            document.getElementById('ghPath').value=cfg.path||'brain.md';
+            document.getElementById('ghAutoSync').checked=cfg.auto_sync||false;
+            let html='';
+            html+='<div>Status: '+(cfg.enabled?'<span style="color:#4ade80">● Connected</span>':'<span style="color:#7d8590">○ Disabled</span>')+'</div>';
+            html+='<div>Repo: <strong>'+(cfg.repo||'Not configured')+'</strong></div>';
+            html+='<div>Token: '+(cfg.token_masked?'<span style="color:#4ade80">✓ '+cfg.token_masked+'</span>':'<span style="color:#f87171">✗ Not set</span>')+'</div>';
+            html+='<div>Syncs: <strong>'+(cfg.total_syncs||0)+'</strong></div>';
+            if(cfg.last_sync){
+                const d=new Date(cfg.last_sync);
+                html+='<div>Last sync: <strong>'+d.toLocaleDateString()+' '+d.toLocaleTimeString()+'</strong></div>';
+            }else{
+                html+='<div>Last sync: <strong>Never</strong></div>';
+            }
+            if(cfg.last_error){
+                html+='<div style="color:#f87171;margin-top:4px">Error: '+esc(cfg.last_error)+'</div>';
+            }
+            document.getElementById('ghStatusInfo').innerHTML=html;
+        }catch(e){
+            document.getElementById('ghStatusInfo').textContent='Failed to load config';
+        }
+    }
+
+    async function saveGithubSync(){
+        try{
+            const body={
+                repo:document.getElementById('ghRepo').value.trim(),
+                path:document.getElementById('ghPath').value.trim()||'brain.md',
+                enabled:true
+            };
+            const token=document.getElementById('ghToken').value.trim();
+            if(token)body.token=token;
+            const res=await fetch(API_URL+'/github-sync',{
+                method:'POST',
+                headers:{'Content-Type':'application/json','X-API-Key':apiKey},
+                body:JSON.stringify(body)
+            });
+            const data=await res.json();
+            showToast('GitHub sync config saved');
+            document.getElementById('ghToken').value='';
+            loadGithubSync();
+        }catch(e){showToast('Failed: '+e.message)}
+    }
+
+    async function saveGithubAutoSync(){
+        try{
+            await fetch(API_URL+'/github-sync',{
+                method:'POST',
+                headers:{'Content-Type':'application/json','X-API-Key':apiKey},
+                body:JSON.stringify({auto_sync:document.getElementById('ghAutoSync').checked})
+            });
+        }catch(e){}
+    }
+
+    async function testGithubSync(){
+        const status=document.getElementById('ghTestStatus');
+        status.textContent='Testing connection...';
+        status.style.color='var(--accent)';
+        const token=document.getElementById('ghToken').value.trim();
+        const repo=document.getElementById('ghRepo').value.trim();
+        if(!token||!repo){status.textContent='Enter repo and token first';status.style.color='var(--danger)';return;}
+        try{
+            const res=await fetch(API_URL+'/github-sync/test',{
+                method:'POST',
+                headers:{'Content-Type':'application/json','X-API-Key':apiKey},
+                body:JSON.stringify({token:token,repo:repo})
+            });
+            const data=await res.json();
+            if(data.ok){
+                status.innerHTML='<span style="color:#4ade80">✅ Connected as <strong>'+data.info.username+'</strong> → '+data.info.repo+' ('+(data.info.private?'private':'⚠️ public')+')</span>';
+            }else{
+                status.innerHTML='<span style="color:#f87171">❌ '+esc(data.error)+'</span>';
+            }
+        }catch(e){status.textContent='❌ '+e.message;status.style.color='var(--danger)'}
+    }
+
+    async function runGithubSync(){
+        const status=document.getElementById('ghRunStatus');
+        status.textContent='Syncing to GitHub...';
+        status.style.color='var(--accent)';
+        try{
+            const res=await fetch(API_URL+'/github-sync/run',{
+                method:'POST',
+                headers:{'Content-Type':'application/json','X-API-Key':apiKey},
+                body:JSON.stringify({})
+            });
+            const data=await res.json();
+            if(data.ok){
+                status.innerHTML='<span style="color:#4ade80">✅ '+esc(data.message)+' ('+data.sha+')</span>';
+                if(data.commit_url){
+                    status.innerHTML+=' <a href="'+data.commit_url+'" target="_blank" style="color:var(--accent);font-size:11px">View commit →</a>';
+                }
+                showToast('Synced to GitHub!');
+            }else{
+                status.innerHTML='<span style="color:#f87171">❌ '+esc(data.error)+'</span>';
+            }
+            loadGithubSync();
+        }catch(e){status.textContent='❌ '+e.message;status.style.color='var(--danger)'}
+    }
+
+    // ── Auto-Backup ─────────────────────────────────────────────────────
+
+    async function loadAutobackup(){
+        try{
+            const res=await fetch(API_URL+'/autobackup',{headers:{'X-API-Key':apiKey}});
+            const cfg=await res.json();
+            document.getElementById('backupDir').value=cfg.backup_dir||'';
+            document.getElementById('backupInterval').value=cfg.interval_hours||6;
+            document.getElementById('backupMax').value=cfg.max_backups||10;
+            document.getElementById('backupEncrypt').checked=cfg.encrypt||false;
+            document.getElementById('passwordField').style.display=cfg.encrypt?'block':'none';
+            const toggle=document.getElementById('backupToggle');
+            toggle.textContent=cfg.enabled?'⏹️ Disable':'▶️ Enable';
+            toggle.className=cfg.enabled?'btn btn-danger':'btn btn-primary';
+            let html='';
+            html+='<div>Status: '+(cfg.enabled?'<span style="color:#4ade80">● Active</span>':'<span style="color:#7d8590">○ Disabled</span>')+'</div>';
+            html+='<div>Backups created: <strong>'+(cfg.total_backups||0)+'</strong></div>';
+            if(cfg.encrypt){
+                html+='<div>Encryption: <span style="color:#4ade80">🔐 Enabled</span>'+(cfg.has_password?' (password set)':' (no password!)')+'</div>';
+            }else{
+                html+='<div>Encryption: <span style="color:#7d8590">○ Disabled</span></div>';
+            }
+            if(cfg.last_backup){
+                const d=new Date(cfg.last_backup);
+                html+='<div>Last backup: <strong>'+d.toLocaleDateString()+' '+d.toLocaleTimeString()+'</strong></div>';
+            }else{
+                html+='<div>Last backup: <strong>Never</strong></div>';
+            }
+            if(cfg.last_error){
+                html+='<div style="color:#f87171;margin-top:4px">Error: '+esc(cfg.last_error)+'</div>';
+            }
+            html+='<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">Backups go to: <code style="color:var(--accent)">'+esc(cfg.backup_dir||'~/SecondBrain_Backups')+'</code></div>';
+            document.getElementById('backupStatusInfo').innerHTML=html;
+        }catch(e){
+            document.getElementById('backupStatusInfo').textContent='Failed to load config';
+        }
+    }
+
+    async function saveAutobackup(){
+        const status=document.getElementById('backupRunStatus');
+        try{
+            const body={
+                backup_dir:document.getElementById('backupDir').value,
+                interval_hours:parseInt(document.getElementById('backupInterval').value),
+                max_backups:parseInt(document.getElementById('backupMax').value),
+                encrypt:document.getElementById('backupEncrypt').checked
+            };
+            const pw=document.getElementById('backupPassword').value;
+            if(pw)body.password=pw;
+            else if(!body.encrypt)body.password='';
+            const res=await fetch(API_URL+'/autobackup',{
+                method:'POST',
+                headers:{'Content-Type':'application/json','X-API-Key':apiKey},
+                body:JSON.stringify(body)
+            });
+            const data=await res.json();
+            showToast('Auto-backup config saved');
+            document.getElementById('backupPassword').value='';
+            loadAutobackup();
+        }catch(e){showToast('Failed: '+e.message)}
+    }
+
+    async function toggleAutobackup(){
+        try{
+            const cfg=await(await fetch(API_URL+'/autobackup',{headers:{'X-API-Key':apiKey}})).json();
+            const res=await fetch(API_URL+'/autobackup',{
+                method:'POST',
+                headers:{'Content-Type':'application/json','X-API-Key':apiKey},
+                body:JSON.stringify({enabled:!cfg.enabled})
+            });
+            const data=await res.json();
+            showToast(data.config.enabled?'Auto-backup enabled':'Auto-backup disabled');
+            loadAutobackup();
+        }catch(e){showToast('Failed: '+e.message)}
+    }
+
+    async function runBackupNow(){
+        const status=document.getElementById('backupRunStatus');
+        const encrypt=document.getElementById('backupEncrypt').checked;
+        let password='';
+        if(encrypt){
+            password=prompt('Enter encryption password:');
+            if(!password){status.textContent='Cancelled';return;}
+        }
+        status.textContent='Backing up now...';
+        status.style.color='var(--accent)';
+        try{
+            const res=await fetch(API_URL+'/autobackup/run',{
+                method:'POST',
+                headers:{'Content-Type':'application/json','X-API-Key':apiKey},
+                body:JSON.stringify({password:password})
+            });
+            const data=await res.json();
+            if(data.ok){
+                status.textContent='✅ '+data.message;
+                status.style.color='var(--success)';
+                showToast('Backup completed!'+(encrypt?' (encrypted)':''));
+            }else{
+                status.textContent='❌ '+data.error;
+                status.style.color='var(--danger)';
+            }
+            loadAutobackup();
+        }catch(e){
+            status.textContent='❌ '+e.message;
+            status.style.color='var(--danger)';
+        }
+    }
+
+    // ── Portable Brain Export/Import ──────────────────────────────────────
+
+    async function exportBrain(){
+        const status=document.getElementById('exportBrainStatus');
+        status.textContent='Generating master brain file...';
+        try{
+            const res=await fetch(API_URL+'/export/brain',{headers:{'X-API-Key':apiKey}});
+            if(!res.ok)throw new Error('HTTP '+res.status);
+            const text=await res.text();
+            const blob=new Blob([text],{type:'text/markdown'});
+            const url=URL.createObjectURL(blob);
+            const a=document.createElement('a');
+            a.href=url;
+            a.download='second-brain-master-'+new Date().toISOString().split('T')[0]+'.md';
+            a.click();
+            URL.revokeObjectURL(url);
+            const count=text.match(/^### /gm)?.length||0;
+            status.textContent='Exported '+count+' items to .md file';
+            showToast('Master brain exported successfully');
+        }catch(e){status.textContent='Failed: '+e.message;showToast('Export failed')}
+    }
+
+    async function importBrain(input){
+        const file=input.files[0];
+        if(!file)return;
+        const status=document.getElementById('importBrainStatus');
+        status.textContent='Importing master brain file...';
+        try{
+            const formData=new FormData();
+            formData.append('file',file);
+            let url=API_URL+'/import/brain';
+            // First try without password
+            let res=await fetch(url,{method:'POST',headers:{'X-API-Key':apiKey},body:formData});
+            let data=await res.json();
+            // If encrypted, ask for password and retry
+            if(data.encrypted){
+                const pw=prompt('This file is encrypted. Enter password:');
+                if(!pw){status.textContent='Cancelled';return;}
+                formData.delete('file');
+                formData.append('file',file);
+                url=API_URL+'/import/brain?password='+encodeURIComponent(pw);
+                res=await fetch(url,{method:'POST',headers:{'X-API-Key':apiKey},body:formData});
+                data=await res.json();
+            }
+            if(!res.ok)throw new Error(data.error||'HTTP '+res.status);
+            status.textContent='Imported '+data.imported+' items'+(data.reindexed?' (reindexed '+data.reindexed+')':'');
+            showToast('Brain imported successfully');
+            input.value='';
+            loadSettings();
+        }catch(e){status.textContent='Failed: '+e.message;showToast('Import failed: '+e.message)}
+    }
+
+    // ── Full Database Backup ──────────────────────────────────────────────
+
+    async function exportBackup(){
+        const status=document.getElementById('backupStatus');
+        status.textContent='Creating full backup...';
+        try{
+            const res=await fetch(API_URL+'/export/backup',{headers:{'X-API-Key':apiKey}});
+            if(!res.ok)throw new Error('HTTP '+res.status);
+            const blob=await res.blob();
+            const url=URL.createObjectURL(blob);
+            const a=document.createElement('a');
+            a.href=url;
+            a.download='second-brain-backup-'+new Date().toISOString().split('T')[0]+'.db';
+            a.click();
+            URL.revokeObjectURL(url);
+            status.textContent='Full backup downloaded ('+Math.round(blob.size/1024)+'KB)';
+            showToast('Full backup downloaded');
+        }catch(e){status.textContent='Failed: '+e.message;showToast('Backup failed')}
+    }
+
+    async function importBackup(input){
+        const file=input.files[0];
+        if(!file)return;
+        if(!confirm('⚠️ This will REPLACE your entire database. Continue?')){input.value='';return;}
+        const status=document.getElementById('backupStatus');
+        status.textContent='Restoring backup...';
+        try{
+            const formData=new FormData();
+            formData.append('file',file);
+            const res=await fetch(API_URL+'/import/backup',{method:'POST',headers:{'X-API-Key':apiKey},body:formData});
+            if(!res.ok)throw new Error('HTTP '+res.status);
+            const data=await res.json();
+            status.textContent='Backup restored! '+data.message;
+            showToast('Database restored — refresh the page');
+            input.value='';
+        }catch(e){status.textContent='Failed: '+e.message;showToast('Restore failed: '+e.message)}
+    }
+
+    // ── Export/Import ───────────────────────────────────────────────────
+
+    async function exportJSON(){
+        const status=document.getElementById('exportStatus');
+        status.textContent='Exporting...';
+        try{
+            const data=await apiFetch('/export');
+            const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+            const url=URL.createObjectURL(blob);
+            const a=document.createElement('a');
+            a.href=url;
+            a.download='second-brain-export-'+new Date().toISOString().split('T')[0]+'.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            status.textContent='Exported '+data.items.length+' items';
+            showToast('JSON exported successfully');
+        }catch(e){status.textContent='Failed: '+e.message;showToast('Export failed')}
+    }
+
+    async function exportMarkdown(){
+        const status=document.getElementById('exportStatus');
+        status.textContent='Exporting markdown...';
+        try{
+            const res=await fetch(API_URL+'/export/markdown',{headers:{'X-API-Key':apiKey}});
+            if(!res.ok)throw new Error('HTTP '+res.status);
+            const blob=await res.blob();
+            const url=URL.createObjectURL(blob);
+            const a=document.createElement('a');
+            a.href=url;
+            a.download='second-brain-export-'+new Date().toISOString().split('T')[0]+'.zip';
+            a.click();
+            URL.revokeObjectURL(url);
+            status.textContent='Markdown export downloaded';
+            showToast('Markdown exported successfully');
+        }catch(e){status.textContent='Failed: '+e.message;showToast('Markdown export failed')}
+    }
+
+    async function importJSON(input){
+        const file=input.files[0];
+        if(!file)return;
+        const status=document.getElementById('importStatus');
+        status.textContent='Importing...';
+        try{
+            const text=await file.text();
+            const data=JSON.parse(text);
+            const res=await apiFetch('/import',{method:'POST',body:data});
+            status.textContent='Imported '+res.imported+' items';
+            showToast('Imported '+res.imported+' items successfully');
+            input.value='';
+        }catch(e){status.textContent='Failed: '+e.message;showToast('Import failed: '+e.message)}
+    }
+
+    async function importMarkdown(input){
+        const file=input.files[0];
+        if(!file)return;
+        const status=document.getElementById('importStatus');
+        status.textContent='Importing markdown...';
+        try{
+            const formData=new FormData();
+            formData.append('file',file);
+            const res=await fetch(API_URL+'/import/markdown',{method:'POST',headers:{'X-API-Key':apiKey},body:formData});
+            if(!res.ok)throw new Error('HTTP '+res.status);
+            const data=await res.json();
+            status.textContent='Imported '+data.imported+' items';
+            showToast('Markdown imported successfully');
+            input.value='';
+        }catch(e){status.textContent='Failed: '+e.message;showToast('Import failed: '+e.message)}
+    }
+
+    // Check if Gemini key exists
+    const gKey=localStorage.getItem('gemini_api_key');
+    if(gKey){document.getElementById('geminiStatus').className='status-badge status-ok';document.getElementById('geminiStatus').textContent='● Configured';document.getElementById('geminiKey').value=gKey;}
+
+    function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+    let toastTimer;
+    function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2500)}
+
+    startTimeClock();loadSettings();loadAutobackup();loadGithubSync();
+    
+    var chatHistory = JSON.parse(localStorage.getItem('brain_chat_history') || '[]'); if (!Array.isArray(chatHistory)) chatHistory = [];
+    function toggleChat() { document.getElementById('chatPanel').classList.toggle('open'); }
+    async function sendChat() {
+        var input = document.getElementById('chatInput'), msg = input.value.trim();
+        if (!msg) return; input.value = '';
+        var ml = document.getElementById('chatMessages');
+        ml.innerHTML += '<div class="chat-msg user">' + esc(msg) + '</div>';
+        var tid = 't-' + Date.now();
+        ml.innerHTML += '<div class="chat-msg assistant" id="' + tid + '">Thinking...</div>';
+        ml.scrollTop = ml.scrollHeight;
+        try {
+            var r = await apiFetch('/chat', { method: 'POST', body: { message: msg, history: chatHistory } });
+            document.getElementById(tid).innerHTML = esc(r.reply);
+            chatHistory.push({ role: 'user', parts: [msg] }); chatHistory.push({ role: 'model', parts: [r.reply] });
+            if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
+            localStorage.setItem('brain_chat_history', JSON.stringify(chatHistory));
+        } catch(e) { document.getElementById(tid).innerHTML = '<span style="color:#f87171">' + esc(e.message) + '</span>'; }
+        ml.scrollTop = ml.scrollHeight;
+    }
+
+    
+    document.addEventListener('click', function(e) {
+        var cp = document.getElementById('chatPanel');
+        if (cp && cp.classList.contains('open') && !e.target.closest('.chat-panel') && !e.target.closest('[onclick*="toggleChat"]')) {
+            cp.classList.remove('open');
+        }
+    });
+    </script>
+</body>
+</html>
